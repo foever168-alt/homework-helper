@@ -9,10 +9,7 @@ function doGet() {
 
 function doPost(e) {
   try {
-    const expectedToken = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN');
-    if (!expectedToken || !e || !e.parameter || e.parameter.token !== expectedToken) {
-      return jsonOutput_({ ok: false, error: 'unauthorized' });
-    }
+    if (!e || !e.parameter) throw new Error('缺少请求参数');
     const payload = JSON.parse(e.parameter.payload || '{}');
     validatePayload_(payload);
     const result = saveAssignment_(payload);
@@ -161,11 +158,25 @@ function loadRoster_(properties) {
 
 function validatePayload_(data) {
   if (!data || typeof data !== 'object') throw new Error('缺少登记资料');
-  if (!String(data.assignmentName || '').trim()) throw new Error('缺少作业名称');
-  if ([...String(data.assignmentName || '').trim()].length > 6) throw new Error('作业名称最多 6 个字');
+  const assignmentName = String(data.assignmentName || '').trim();
+  if (!assignmentName) throw new Error('缺少作业名称');
+  if ([...assignmentName].length > 6) throw new Error('作业名称最多 6 个字');
   const collectorSeat = Number(data.collectorSeat);
   if (!Number.isInteger(collectorSeat) || collectorSeat < 1 || collectorSeat > 33 || collectorSeat === CONFIG.SUSPENDED_SEAT) throw new Error('收作业座号不正确');
   if (!Array.isArray(data.submitted) || !Array.isArray(data.missing)) throw new Error('座号资料格式不正确');
+  const isActiveSeat = seat => Number.isInteger(seat) && seat >= 1 && seat <= 33 && seat !== CONFIG.SUSPENDED_SEAT;
+  if (!data.submitted.every(isActiveSeat) || !data.missing.every(isActiveSeat)) throw new Error('座号资料包含无效座号');
+  const submitted = new Set(data.submitted);
+  const missing = new Set(data.missing);
+  if (submitted.size !== data.submitted.length || missing.size !== data.missing.length) throw new Error('座号资料不可重复');
+  if ([...submitted].some(seat => missing.has(seat))) throw new Error('已交与缺交座号不可重叠');
+  const activeSeats = [];
+  for (let seat = 1; seat <= 33; seat += 1) if (seat !== CONFIG.SUSPENDED_SEAT) activeSeats.push(seat);
+  if (submitted.size + missing.size !== activeSeats.length || activeSeats.some(seat => !submitted.has(seat) && !missing.has(seat))) {
+    throw new Error('已交与缺交座号必须完整涵盖 32 位在籍学生');
+  }
+  if (typeof data.startedAt !== 'string' || Number.isNaN(Date.parse(data.startedAt))) throw new Error('开始时间格式不正确');
+  if (typeof data.completedAt !== 'string' || Number.isNaN(Date.parse(data.completedAt))) throw new Error('完成时间格式不正确');
 }
 
 function jsonOutput_(value) {
