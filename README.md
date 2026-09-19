@@ -14,12 +14,11 @@
 2. 新建 Google Apps Script 专案，把 `gas/Code.gs` 贴进去。
 3. 在 Apps Script 的 **专案设定 → 指令码属性** 新增 `FOLDER_ID`，值为「成绩」资料夹网址中 `/folders/` 后面的 ID。
 4. 在同一处新增 `ROSTER_SPREADSHEET_ID`，值为学生名单 Google Sheet 的文件 ID；再新增 `ROSTER_SHEET_NAME`，值为 `原班名單`。
-5. 在同一处新增 `ACCESS_TOKEN`，值使用一组够长、只有老师知道的随机访问码。
-6. 部署为 Web App：执行身分选「我」，存取权限依学校帐号政策选择可使用的范围。
-7. 把 Web App URL 和同一组访问码填入网页底部「Google Sheets 同步设定」。
+5. 部署为 Web App：执行身分选「我」，存取权限设为可让公开网页直接呼叫的「所有人」。
+6. 把部署后的 `/exec` URL 写入 `dist/index.html` 的 `GAS_WEB_APP_URL` 常数，然后重新发布 GitHub Pages。学生装置不需要另行设定或登入。
 
 第一次按「汇出并送出」时，Apps Script 会在「成绩」资料夹自动建立一份固定的 `收作业小老师收作业`，并把档案 ID 存入指令码属性 `DATA_SPREADSHEET_ID`。之后每次登记都写进同一个 Google Sheets：`总览` 会新增一笔索引，有登记的日期才会自动建立 `yyyy-MM-dd` 分页；同一天的多份作业放在同一分页，并依作业名称分成不同区块。每个区块包含收作业座号、开始与完成时间，以及 1–33 号的姓名和缴交状态。学生姓名只会由 Apps Script 在执行时从私人名单读取，不会写入公开网页源码。
 
 ## 隐私说明
 
-不要把访问码、Apps Script URL、学生名单或登记资料提交到公开 GitHub 仓库。网页只把这两项保存在老师当前浏览器的本机储存空间。
+不要把成绩资料夹 ID、名册试算表 ID、学生名单或登记资料提交到公开 GitHub 仓库。Web App URL 会随网页公开；这个部署模式没有访问码，任何取得端点的人都可能送出资料，因此后端会严格验证座号集合、作业名称与时间格式。学生姓名只保留在私人 Google Sheets 中，网页只在当前浏览器保存最近登记纪录作为失败时的本机备援。
