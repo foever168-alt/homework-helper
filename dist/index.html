@@ -120,9 +120,6 @@
     .missing-box.show { display: block; }
     .missing-box p { margin: 7px 0 0; line-height: 1.55; font-weight: 800; }
     .history { margin-top: 24px; }
-    details.settings { margin-top: 22px; }
-    details.settings summary { cursor: pointer; font-weight: 900; color: var(--blue-deep); }
-    .settings-grid { display: grid; grid-template-columns: 1.5fr .7fr; gap: 12px; margin-top: 14px; }
     .history-list { display: grid; gap: 12px; margin-top: 15px; }
     .record { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; background: #fff; border-radius: 18px; box-shadow: 0 5px 0 #ded6df; }
     .record strong, .record small { display: block; }
@@ -217,16 +214,8 @@
 
     <section id="exportView" class="view" aria-label="匯出紀錄">
       <section class="clay-card history" aria-labelledby="historyTitle">
-        <div class="panel-head"><h2 id="historyTitle">匯出紀錄</h2><button class="btn" id="exportButton" type="button">下載 JSON 備份</button></div>
+        <div class="panel-head"><h2 id="historyTitle">匯出紀錄</h2></div>
         <div id="historyList" class="history-list"></div>
-        <details class="settings">
-          <summary>Google Sheets 同步設定</summary>
-          <div class="settings-grid">
-            <label>GAS Web App 網址<input id="gasUrl" type="url" placeholder="貼上部署後的 Web App 網址" autocomplete="off"></label>
-            <label>訪問碼<input id="gasToken" type="password" placeholder="由老師設定" autocomplete="off"></label>
-          </div>
-          <button class="btn" id="saveSettingsButton" type="button" style="margin-top:12px">儲存同步設定</button>
-        </details>
       </section>
     </section>
   </main>
@@ -238,7 +227,7 @@
       const ACTIVE_TOTAL = 32;
       const SUSPENDED = 26;
       const STORAGE_KEY = 'homework-helper-records-v1';
-      const SETTINGS_KEY = 'homework-helper-gas-settings-v1';
+      const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxAd-gjOzi7UaWyixV5TSxGUUSDJxhyKjZqL35B0brI0sVs_0FOOFFQumw-83UFTlFm/exec';
       const submitted = new Set();
       const actionHistory = [];
       let finished = false;
@@ -404,34 +393,19 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 50)));
         renderHistory(); showView('export');
         const synced = await syncToGoogleSheets(record);
-        showToast(synced ? '已保存，并送出 Google Sheets 同步' : '已保存到本机；尚未设定 Google Sheets');
+        showToast(synced ? '已保存，並送出 Google Sheets 同步' : '雲端同步失敗，本機資料已保留');
       }
 
       async function syncToGoogleSheets(record) {
-        let settings = {};
-        try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch {}
-        if (!settings.url || !settings.token) return false;
-        const body = new URLSearchParams({ token: settings.token, payload: JSON.stringify(record) });
+        if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GAS_WEB_APP_URL)) return false;
+        const body = new URLSearchParams({ payload: JSON.stringify(record) });
         try {
-          await fetch(settings.url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+          await fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
           return true;
         } catch {
-          showToast('云端同步失败，本机资料已保留');
+          showToast('雲端同步失敗，本機資料已保留');
           return false;
         }
-      }
-
-      function loadSettings() {
-        try {
-          const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-          $('gasUrl').value = settings.url || ''; $('gasToken').value = settings.token || '';
-        } catch {}
-      }
-
-      function saveSettings() {
-        const url = $('gasUrl').value.trim(); const token = $('gasToken').value.trim();
-        if (url && !/^https:\/\/script\.google\.com\//.test(url)) { showToast('请输入正确的 Google Apps Script 网址'); return; }
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ url, token })); showToast('同步设定已保存在这台装置');
       }
 
       function renderHistory() {
@@ -449,12 +423,6 @@
           const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = `已交 ${r.submitted.length}`;
           info.append(title, meta); row.append(info, badge); list.appendChild(row);
         });
-      }
-
-      function exportData() {
-        const blob = new Blob([JSON.stringify(loadRecords(), null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob); const a = document.createElement('a');
-        a.href = url; a.download = `作業登記-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
       }
 
       function showToast(message) {
@@ -499,12 +467,10 @@
       $('backButton').addEventListener('click', () => showView('entry'));
       $('resetButton').addEventListener('click', resetRegistration);
       $('saveButton').addEventListener('click', saveRegistration);
-      $('exportButton').addEventListener('click', exportData);
-      $('saveSettingsButton').addEventListener('click', saveSettings);
       document.querySelectorAll('[data-stage]').forEach(button => button.addEventListener('click', () => {
         if (!button.disabled) showView(button.dataset.stage);
       }));
-      updateClock(); window.setInterval(updateClock, 30000); renderSeats(); renderHistory(); loadSettings(); setupVoice();
+      updateClock(); window.setInterval(updateClock, 30000); renderSeats(); renderHistory(); setupVoice();
     })();
   </script>
 </body>
