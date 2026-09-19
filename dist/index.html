@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8d7e6">
+  <meta name="description" content="用語音快速登記學生作業繳交狀態，自動整理缺交座號。">
+  <title>作業收件小幫手</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23f5b7cf'/%3E%3Cpath d='M18 16h28v36H18z' rx='6' fill='%23fff8e8'/%3E%3Cpath d='m24 33 6 6 11-14' fill='none' stroke='%23686bc2' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --ink: #403c55;
+      --muted: #716d83;
+      --cream: #fff9ef;
+      --paper: #fffdf8;
+      --pink: #f7bfd5;
+      --pink-deep: #d96f9d;
+      --blue: #b8dcef;
+      --blue-deep: #4f82a3;
+      --mint: #bfe5d1;
+      --mint-deep: #3f8863;
+      --yellow: #f8df93;
+      --orange: #efaa70;
+      --purple: #c9bce8;
+      --danger: #d96b76;
+      --line: #e8dfe7;
+      --shadow: 0 14px 0 rgba(95, 75, 110, .11), 0 24px 38px rgba(95, 75, 110, .13);
+      --soft-shadow: 0 7px 0 rgba(95, 75, 110, .12), 0 13px 24px rgba(95, 75, 110, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      font-family: ui-rounded, "Nunito", "Noto Sans TC", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 10% 15%, rgba(247,191,213,.55) 0 11px, transparent 12px),
+        radial-gradient(circle at 92% 8%, rgba(184,220,239,.75) 0 15px, transparent 16px),
+        radial-gradient(circle at 7% 86%, rgba(248,223,147,.72) 0 10px, transparent 11px),
+        linear-gradient(140deg, #fff8ee, #f8f0ff 58%, #eefaff);
+      min-height: 100vh;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible { outline: 4px solid rgba(79,130,163,.25); outline-offset: 3px; }
+    .page { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 56px; position: relative; }
+    .memphis { position: fixed; pointer-events: none; z-index: -1; opacity: .7; }
+    .zigzag { right: 3vw; top: 29vh; width: 90px; height: 20px; transform: rotate(-11deg); background: linear-gradient(135deg, transparent 35%, var(--purple) 35% 65%, transparent 65%) 0 0/24px 24px; }
+    .sprinkles { left: 2vw; top: 44vh; width: 90px; height: 110px; background: repeating-linear-gradient(120deg, transparent 0 18px, var(--orange) 19px 23px, transparent 24px 41px); }
+    .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+    .stage-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 18px; }
+    .stage-nav button { min-height: 48px; border: 0; border-radius: 17px; background: rgba(255,255,255,.72); color: var(--muted); font-weight: 900; cursor: pointer; box-shadow: 0 5px 0 rgba(95,75,110,.12); }
+    .stage-nav button[aria-current="step"] { background: var(--purple); color: var(--ink); box-shadow: 0 5px 0 #9f8fc8; }
+    .stage-nav button:disabled { opacity: .48; cursor: not-allowed; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .result-card { width: min(720px, 100%); margin: 0 auto; }
+    .result-meta { margin: 10px 0 0; color: var(--muted); font-weight: 800; line-height: 1.55; }
+    .eyebrow { margin: 0 0 4px; color: var(--pink-deep); font-weight: 800; letter-spacing: .09em; }
+    h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.05; letter-spacing: -.04em; }
+    .clock { padding: 10px 15px; border-radius: 18px; background: var(--yellow); box-shadow: 0 5px 0 rgba(170,132,54,.18); font-weight: 800; white-space: nowrap; }
+    .setup {
+      display: grid; grid-template-columns: minmax(260px, 1.5fr) minmax(150px, .5fr); gap: 14px;
+      background: rgba(255,253,248,.86); padding: 18px; border: 2px solid rgba(255,255,255,.92); border-radius: 30px; box-shadow: var(--shadow); margin-bottom: 24px; backdrop-filter: blur(10px);
+    }
+    label { display: grid; gap: 7px; font-size: .9rem; font-weight: 800; color: var(--muted); }
+    input {
+      width: 100%; min-height: 48px; border: 2px solid var(--line); border-radius: 16px; padding: 10px 13px; background: #fff; color: var(--ink); font-size: 1rem;
+      box-shadow: inset 0 2px 5px rgba(92,70,100,.05);
+    }
+    .app-grid { display: block; }
+    .clay-card { background: rgba(255,253,248,.94); border: 2px solid rgba(255,255,255,.9); border-radius: 32px; box-shadow: var(--shadow); padding: 22px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+    h2 { margin: 0; font-size: 1.25rem; }
+    .count { padding: 7px 12px; border-radius: 999px; background: var(--purple); font-weight: 900; }
+    .seat-grid { display: grid; grid-template-columns: repeat(10, minmax(48px, 1fr)); gap: 10px; }
+    .seat {
+      aspect-ratio: 1; border: 0; border-radius: 20px; background: #f5f1f3; font-size: 1.04rem; font-weight: 900; cursor: pointer;
+      box-shadow: 0 7px 0 #dcd4dc, 0 12px 18px rgba(77,61,86,.12); transition: transform .14s ease, box-shadow .14s ease, background .2s ease;
+    }
+    .seat:hover:not(:disabled) { transform: translateY(-2px); }
+    .seat:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 2px 0 #dcd4dc; }
+    .seat.submitted { background: var(--mint); color: #2c6e50; box-shadow: 0 7px 0 #87bea0, 0 12px 18px rgba(49,120,84,.15); }
+    .seat.missing { background: var(--pink); color: #954567; box-shadow: 0 7px 0 #d68da9, 0 12px 18px rgba(149,69,103,.15); }
+    .seat.suspended { background: #ddd9df; color: #827b88; box-shadow: 0 7px 0 #bbb5bf; cursor: not-allowed; position: relative; }
+    .seat.suspended::after { content: "休"; position: absolute; right: 7px; top: 5px; font-size: .67rem; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 18px; color: var(--muted); font-weight: 750; font-size: .9rem; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 -2px 0 rgba(0,0,0,.12); }
+    .voice-toolbar { position: sticky; top: 8px; z-index: 2; display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px; border-radius: 20px; background: linear-gradient(145deg, #d8eff9, #f3e7fb); box-shadow: var(--soft-shadow); }
+    .mic {
+      width: 48px; height: 48px; border: 0; border-radius: 50%; cursor: pointer; background: var(--pink); color: #8f4262;
+      box-shadow: inset 4px 4px 9px rgba(255,255,255,.72), inset -5px -5px 10px rgba(194,104,141,.24), 0 5px 0 #d98ead, 0 9px 16px rgba(97,73,106,.16);
+      display: grid; place-items: center; transition: .18s ease;
+    }
+    .mic:hover { transform: translateY(-2px) rotate(-2deg); }
+    .mic:active { transform: translateY(4px); box-shadow: inset 4px 4px 9px rgba(255,255,255,.72), inset -5px -5px 10px rgba(194,104,141,.24), 0 1px 0 #d98ead; }
+    .mic.listening { animation: pulse 1.3s ease-in-out infinite; background: #f29abf; }
+    @keyframes pulse { 50% { transform: scale(1.06); box-shadow: inset 4px 4px 9px rgba(255,255,255,.72), inset -5px -5px 10px rgba(194,104,141,.24), 0 5px 0 #d98ead, 0 0 0 10px rgba(247,191,213,.25); } }
+    .mic svg { width: 22px; height: 22px; fill: currentColor; }
+    .voice-state { font-weight: 900; margin: 0; line-height: 1.25; }
+    .voice-state small { display: block; color: var(--muted); font-weight: 700; margin-top: 3px; }
+    .tool-icon { min-width: 48px; min-height: 48px; border: 0; border-radius: 16px; background: var(--yellow); box-shadow: 0 5px 0 #d7b95f; font-size: 1.45rem; font-weight: 900; cursor: pointer; }
+    .tool-icon:active { transform: translateY(3px); box-shadow: 0 2px 0 #d7b95f; }
+    .tool-icon:disabled { opacity: .45; cursor: not-allowed; }
+    .voice-toolbar .btn { min-height: 48px; white-space: nowrap; }
+    .transcript { margin: 0 0 14px; min-height: 44px; border: 2px dashed rgba(79,130,163,.25); border-radius: 15px; padding: 9px 11px; background: rgba(255,255,255,.62); line-height: 1.4; color: var(--muted); }
+    .clear-button { margin-top: 14px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+    .stat { text-align: center; border-radius: 19px; padding: 12px 8px; background: #fff; box-shadow: var(--soft-shadow); }
+    .stat strong { display: block; font-size: 1.65rem; line-height: 1; margin-bottom: 6px; }
+    .stat span { color: var(--muted); font-size: .82rem; font-weight: 800; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+    .btn { min-height: 48px; border: 0; border-radius: 17px; padding: 11px 14px; font-weight: 900; cursor: pointer; background: var(--yellow); box-shadow: 0 6px 0 #d7b95f; }
+    .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d7b95f; }
+    .btn.primary { background: var(--purple); box-shadow: 0 6px 0 #9f8fc8; }
+    .btn.danger { background: #f4c1c6; box-shadow: 0 6px 0 #cc8c94; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .missing-box { display: none; margin-top: 18px; padding: 16px; border-radius: 21px; background: #fff0f4; border: 2px solid #efbacd; }
+    .missing-box.show { display: block; }
+    .missing-box p { margin: 7px 0 0; line-height: 1.55; font-weight: 800; }
+    .history { margin-top: 24px; }
+    details.settings { margin-top: 22px; }
+    details.settings summary { cursor: pointer; font-weight: 900; color: var(--blue-deep); }
+    .settings-grid { display: grid; grid-template-columns: 1.5fr .7fr; gap: 12px; margin-top: 14px; }
+    .history-list { display: grid; gap: 12px; margin-top: 15px; }
+    .record { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; background: #fff; border-radius: 18px; box-shadow: 0 5px 0 #ded6df; }
+    .record strong, .record small { display: block; }
+    .record small { margin-top: 5px; color: var(--muted); line-height: 1.45; }
+    .record .badge { background: var(--mint); padding: 7px 10px; border-radius: 999px; font-weight: 900; white-space: nowrap; }
+    .empty { color: var(--muted); padding: 8px 0; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 140%); opacity: 0; background: var(--ink); color: white; padding: 12px 18px; border-radius: 16px; font-weight: 800; transition: .25s ease; z-index: 5; box-shadow: var(--soft-shadow); }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+    @media (max-width: 900px) {
+      .app-grid { display: block; }
+      .seat-grid { grid-template-columns: repeat(auto-fit, minmax(46px, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      .page { width: min(100% - 20px, 1180px); padding-top: 18px; }
+      .topbar { align-items: flex-start; }
+      .clock { font-size: .85rem; }
+      .setup { grid-template-columns: minmax(0,1fr) 92px; }
+      .seat-grid { grid-template-columns: repeat(auto-fit, minmax(42px, 1fr)); gap: 8px; }
+      .clay-card { padding: 17px; border-radius: 25px; }
+      .seat { border-radius: 16px; }
+      .voice-toolbar { grid-template-columns: 48px minmax(0,1fr) 48px auto; gap: 7px; }
+      .voice-toolbar .btn { padding-inline: 10px; }
+      .voice-state { font-size: .88rem; }
+      .voice-state small { font-size: .74rem; }
+    }
+    @media (max-width: 420px) {
+      .seat-grid { grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)); gap: 7px; }
+      .topbar { display: grid; }
+      h1 { font-size: 2.15rem; }
+      .stage-nav button { font-size: .84rem; padding-inline: 5px; }
+      .voice-state { font-size: .82rem; }
+      .voice-state small { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="memphis zigzag" aria-hidden="true"></div>
+  <div class="memphis sprinkles" aria-hidden="true"></div>
+  <main class="page">
+    <header class="topbar">
+      <div><p class="eyebrow">HOMEWORK HELPER</p><h1>作業收件小幫手</h1></div>
+      <time class="clock" id="clock">載入時間中…</time>
+    </header>
+
+    <nav class="stage-nav" aria-label="作業登記步驟">
+      <button type="button" data-stage="entry" aria-current="step">1 登記面板</button>
+      <button type="button" data-stage="result" disabled>2 結果確認</button>
+      <button type="button" data-stage="export">3 匯出紀錄</button>
+    </nav>
+
+    <section id="entryView" class="view active" aria-label="登記面板">
+    <section class="setup" aria-label="本次作業資料">
+      <label>作業名稱<input id="assignmentName" value="數學習作3回" maxlength="6" title="最多 6 個字" autocomplete="off"></label>
+      <label>收作業座號<input id="collectorSeat" inputmode="numeric" placeholder="例如：12" autocomplete="off"></label>
+    </section>
+
+    <div class="app-grid">
+      <section class="clay-card" aria-labelledby="seatTitle">
+        <div class="panel-head"><h2 id="seatTitle">座號总览</h2><span class="count">32 位在籍 · 26 號休學</span></div>
+        <div class="voice-toolbar" aria-label="語音登記工具列">
+          <button class="mic" id="micButton" type="button" aria-label="開始或停止語音辨識">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V20h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2.07A7 7 0 0 1 5 11a1 1 0 1 1 2 0 5 5 0 0 0 10 0Z"/></svg>
+          </button>
+          <p class="voice-state" id="voiceState">點麥克風開始<small>可說「作業名稱 數學習作」或念座號</small></p>
+          <button class="tool-icon" id="undoButton" type="button" aria-label="返回上一筆" disabled>↶</button>
+          <button class="btn primary" id="finishButton" type="button">登記結束</button>
+        </div>
+        <div class="transcript" id="transcript" aria-live="polite">等待語音內容…</div>
+        <div id="seatGrid" class="seat-grid" aria-label="學生繳交狀態"></div>
+        <div class="legend"><span><i class="dot" style="background:var(--mint)"></i>已交</span><span><i class="dot" style="background:var(--pink)"></i>缺交</span><span><i class="dot" style="background:#ddd9df"></i>休學</span></div>
+        <button class="btn danger clear-button" id="resetButton" type="button">清除本次登記</button>
+      </section>
+    </div>
+    </section>
+
+    <section id="resultView" class="view" aria-label="結果確認">
+      <section class="clay-card result-card" aria-labelledby="summaryTitle">
+        <div class="panel-head"><div><h2 id="summaryTitle">本次登記結果</h2><p id="resultMeta" class="result-meta"></p></div></div>
+        <div class="stats">
+          <div class="stat"><strong id="submittedCount">0</strong><span>已交</span></div>
+          <div class="stat"><strong id="pendingCount">32</strong><span id="pendingLabel">待確認</span></div>
+          <div class="stat"><strong>1</strong><span>休學</span></div>
+        </div>
+        <div id="missingBox" class="missing-box" aria-live="polite"><strong>缺交座號</strong><p id="missingList"></p></div>
+        <div class="actions">
+          <button class="btn danger" id="backButton" type="button">返回修改</button>
+          <button class="btn primary" id="saveButton" type="button" disabled>匯出並送出</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="exportView" class="view" aria-label="匯出紀錄">
+      <section class="clay-card history" aria-labelledby="historyTitle">
+        <div class="panel-head"><h2 id="historyTitle">匯出紀錄</h2><button class="btn" id="exportButton" type="button">下載 JSON 備份</button></div>
+        <div id="historyList" class="history-list"></div>
+        <details class="settings">
+          <summary>Google Sheets 同步設定</summary>
+          <div class="settings-grid">
+            <label>GAS Web App 網址<input id="gasUrl" type="url" placeholder="貼上部署後的 Web App 網址" autocomplete="off"></label>
+            <label>訪問碼<input id="gasToken" type="password" placeholder="由老師設定" autocomplete="off"></label>
+          </div>
+          <button class="btn" id="saveSettingsButton" type="button" style="margin-top:12px">儲存同步設定</button>
+        </details>
+      </section>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+      const ACTIVE_TOTAL = 32;
+      const SUSPENDED = 26;
+      const STORAGE_KEY = 'homework-helper-records-v1';
+      const SETTINGS_KEY = 'homework-helper-gas-settings-v1';
+      const submitted = new Set();
+      const actionHistory = [];
+      let finished = false;
+      let startedAt = new Date();
+      let recognition = null;
+      let listening = false;
+      const $ = (id) => document.getElementById(id);
+      const zhDigits = { '零':0, '〇':0, '一':1, '二':2, '兩':2, '两':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9 };
+
+      function chineseToNumber(raw) {
+        if (/^\d+$/.test(raw)) return Number(raw);
+        if (raw === '十') return 10;
+        if (raw.includes('十')) {
+          const [a, b] = raw.split('十');
+          return (a ? zhDigits[a] : 1) * 10 + (b ? zhDigits[b] : 0);
+        }
+        return zhDigits[raw];
+      }
+
+      function extractSeatNumbers(text) {
+        const normalized = text.replace(/[，、,和與及]/g, ' ');
+        const tokens = normalized.match(/(?:\d{1,2}|[零〇一二兩两三四五六七八九十]{1,3})(?=\s*號?)/g) || [];
+        return [...new Set(tokens.map(chineseToNumber).filter(n => Number.isInteger(n) && n >= 1 && n <= 33 && n !== SUSPENDED))];
+      }
+
+      function parseAssignmentName(text) {
+        const match = text.match(/作[業业]名[稱称]\s*[:：]?\s*(.*)$/);
+        if (!match) return false;
+        const name = match[1].trim();
+        if (!name) { showToast('請在作業名稱後說出名稱'); return true; }
+        if ([...name].length > 6) { showToast('作業名稱最多 6 個字'); return true; }
+        $('assignmentName').value = name;
+        showToast(`已設定作業名稱：${name}`);
+        return true;
+      }
+
+      function parseCollectorSeat(text) {
+        const match = text.match(/收作業(?:的)?(?:同學)?(?:座號|座号|是)?\s*(\d{1,2}|[一二三四五六七八九十兩两]{1,3})\s*號?/);
+        if (!match) return false;
+        const seat = chineseToNumber(match[1]);
+        if (!seat || seat > 33 || seat === SUSPENDED) return false;
+        $('collectorSeat').value = String(seat);
+        showToast(`已記錄收作業座號：${seat} 號`);
+        return true;
+      }
+
+      function handleSpeech(text) {
+        $('transcript').textContent = text;
+        if (parseAssignmentName(text)) return;
+        if (parseCollectorSeat(text)) return;
+        if (/剛剛念錯|刚刚念错|撤銷上一筆|撤销上一笔|返回上一筆|返回上一笔|取消上一筆|取消上一笔/.test(text)) { undoLastAction(); return; }
+        if (/登記結束|登记结束|結束登記|结束登记/.test(text)) { finishRegistration(); return; }
+        const seats = extractSeatNumbers(text);
+        if (!seats.length) return;
+        const cancelling = /取消|沒有交|没交|未交|刪除|删除/.test(text);
+        rememberCurrentState();
+        seats.forEach(n => cancelling ? submitted.delete(n) : submitted.add(n));
+        finished = false;
+        renderSeats();
+        showToast(cancelling ? `已取消 ${seats.join('、')} 號` : `已登記 ${seats.join('、')} 號`);
+      }
+
+      function renderSeats() {
+        const grid = $('seatGrid');
+        grid.textContent = '';
+        for (let n = 1; n <= 33; n += 1) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'seat';
+          button.textContent = String(n);
+          if (n === SUSPENDED) {
+            button.classList.add('suspended'); button.disabled = true; button.setAttribute('aria-label', '26 號，休學');
+          } else {
+            const isSubmitted = submitted.has(n);
+            if (isSubmitted) button.classList.add('submitted');
+            else if (finished) button.classList.add('missing');
+            button.setAttribute('aria-pressed', String(isSubmitted));
+            button.setAttribute('aria-label', `${n} 號，${isSubmitted ? '已交' : finished ? '缺交' : '待確認'}`);
+            button.addEventListener('click', () => { rememberCurrentState(); isSubmitted ? submitted.delete(n) : submitted.add(n); finished = false; renderSeats(); });
+          }
+          grid.appendChild(button);
+        }
+        $('submittedCount').textContent = String(submitted.size);
+        $('pendingCount').textContent = String(ACTIVE_TOTAL - submitted.size);
+        $('pendingLabel').textContent = finished ? '缺交' : '待確認';
+        $('missingBox').classList.toggle('show', finished);
+        $('saveButton').disabled = !finished;
+        $('undoButton').disabled = !actionHistory.length;
+        document.querySelector('[data-stage="result"]').disabled = !finished;
+        if (finished) $('missingList').textContent = getMissing().length ? `${getMissing().join('、')} 號` : '全班皆已繳交 🎉';
+      }
+
+      function rememberCurrentState() {
+        actionHistory.push([...submitted]);
+        if (actionHistory.length > 30) actionHistory.shift();
+      }
+
+      function undoLastAction() {
+        if (!actionHistory.length) { showToast('目前沒有可返回的上一筆'); return; }
+        const previous = actionHistory.pop();
+        submitted.clear(); previous.forEach(n => submitted.add(n));
+        finished = false; renderSeats(); showView('entry'); showToast('已返回上一筆登記');
+      }
+
+      function showView(stage) {
+        document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === `${stage}View`));
+        document.querySelectorAll('[data-stage]').forEach(button => {
+          if (button.dataset.stage === stage) button.setAttribute('aria-current', 'step');
+          else button.removeAttribute('aria-current');
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      function validateHeaderFields() {
+        const name = $('assignmentName').value.trim();
+        const collectorSeat = Number($('collectorSeat').value);
+        if (!name) { $('assignmentName').focus(); showToast('請先填寫作業名稱'); return false; }
+        if ([...name].length > 6) { $('assignmentName').focus(); showToast('作業名稱最多 6 個字'); return false; }
+        if (!collectorSeat || collectorSeat < 1 || collectorSeat > 33 || collectorSeat === SUSPENDED) {
+          $('collectorSeat').focus(); showToast('請填寫正確的收作業座號'); return false;
+        }
+        return true;
+      }
+
+      function getMissing() {
+        const list = [];
+        for (let n = 1; n <= 33; n += 1) if (n !== SUSPENDED && !submitted.has(n)) list.push(n);
+        return list;
+      }
+
+      function finishRegistration() {
+        if (!validateHeaderFields()) return;
+        finished = true;
+        stopListening();
+        renderSeats();
+        $('resultMeta').textContent = `${$('assignmentName').value.trim()} · 收作業座號：${$('collectorSeat').value} 號`;
+        showView('result');
+        showToast('登記完成，請確認缺交座號');
+      }
+
+      function resetRegistration() {
+        if ((submitted.size || finished) && !window.confirm('確定清除這次尚未保存的登記嗎？')) return;
+        submitted.clear(); finished = false; startedAt = new Date();
+        actionHistory.length = 0;
+        $('transcript').textContent = '等待語音內容…';
+        renderSeats(); showView('entry'); showToast('已開始新的登記');
+      }
+
+      function loadRecords() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+      }
+
+      async function saveRegistration() {
+        if (!validateHeaderFields()) { showView('entry'); return; }
+        const name = $('assignmentName').value.trim();
+        const collectorSeat = Number($('collectorSeat').value);
+        const record = {
+          id: String(Date.now()), assignmentName: name, collectorSeat,
+          startedAt: startedAt.toISOString(), completedAt: new Date().toISOString(),
+          submitted: [...submitted].sort((a,b)=>a-b), missing: getMissing(), suspended: [SUSPENDED]
+        };
+        const records = loadRecords(); records.unshift(record);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 50)));
+        renderHistory(); showView('export');
+        const synced = await syncToGoogleSheets(record);
+        showToast(synced ? '已保存，并送出 Google Sheets 同步' : '已保存到本机；尚未设定 Google Sheets');
+      }
+
+      async function syncToGoogleSheets(record) {
+        let settings = {};
+        try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch {}
+        if (!settings.url || !settings.token) return false;
+        const body = new URLSearchParams({ token: settings.token, payload: JSON.stringify(record) });
+        try {
+          await fetch(settings.url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+          return true;
+        } catch {
+          showToast('云端同步失败，本机资料已保留');
+          return false;
+        }
+      }
+
+      function loadSettings() {
+        try {
+          const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+          $('gasUrl').value = settings.url || ''; $('gasToken').value = settings.token || '';
+        } catch {}
+      }
+
+      function saveSettings() {
+        const url = $('gasUrl').value.trim(); const token = $('gasToken').value.trim();
+        if (url && !/^https:\/\/script\.google\.com\//.test(url)) { showToast('请输入正确的 Google Apps Script 网址'); return; }
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ url, token })); showToast('同步设定已保存在这台装置');
+      }
+
+      function renderHistory() {
+        const list = $('historyList');
+        const records = loadRecords();
+        list.textContent = '';
+        if (!records.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = '目前還沒有保存的登記。'; list.appendChild(p); return; }
+        records.slice(0, 6).forEach(r => {
+          const row = document.createElement('article'); row.className = 'record';
+          const info = document.createElement('div');
+          const title = document.createElement('strong'); title.textContent = r.assignmentName;
+          const meta = document.createElement('small');
+          const when = new Intl.DateTimeFormat('zh-TW', { dateStyle:'medium', timeStyle:'short' }).format(new Date(r.completedAt));
+          meta.textContent = `${when} · 收作業座號：${r.collectorSeat} 號 · 缺交：${r.missing.length ? r.missing.join('、') + ' 號' : '無'}`;
+          const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = `已交 ${r.submitted.length}`;
+          info.append(title, meta); row.append(info, badge); list.appendChild(row);
+        });
+      }
+
+      function exportData() {
+        const blob = new Blob([JSON.stringify(loadRecords(), null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob); const a = document.createElement('a');
+        a.href = url; a.download = `作業登記-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
+      }
+
+      function showToast(message) {
+        const toast = $('toast'); toast.textContent = message; toast.classList.add('show');
+        window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600);
+      }
+
+      function stopListening() {
+        if (recognition && listening) recognition.stop();
+        listening = false; $('micButton').classList.remove('listening'); $('voiceState').textContent = '按一下開始聆聽';
+      }
+
+      function setupVoice() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          $('voiceState').textContent = '此瀏覽器不支援語音辨識';
+          $('micButton').disabled = true;
+          $('transcript').textContent = '仍可直接點選座號完成登記。建議使用最新版 Chrome 或 Edge。';
+          return;
+        }
+        recognition = new SpeechRecognition(); recognition.lang = 'zh-TW'; recognition.continuous = true; recognition.interimResults = true;
+        recognition.onresult = (event) => {
+          let interim = '';
+          for (let i = event.resultIndex; i < event.results.length; i += 1) {
+            const text = event.results[i][0].transcript.trim();
+            if (event.results[i].isFinal) handleSpeech(text); else interim += text;
+          }
+          if (interim) $('transcript').textContent = `辨識中：${interim}`;
+        };
+        recognition.onerror = (event) => { showToast(event.error === 'not-allowed' ? '需要麥克風權限才能語音登記' : '語音辨識暫時中斷'); stopListening(); };
+        recognition.onend = () => { if (listening) { try { recognition.start(); } catch {} } };
+        $('micButton').addEventListener('click', () => {
+          if (listening) { stopListening(); return; }
+          try { recognition.start(); listening = true; $('micButton').classList.add('listening'); $('voiceState').textContent = '正在聆聽…'; }
+          catch { showToast('請稍後再試一次'); }
+        });
+      }
+
+      function updateClock() { $('clock').textContent = new Intl.DateTimeFormat('zh-TW', { dateStyle:'medium', timeStyle:'short' }).format(new Date()); }
+      $('finishButton').addEventListener('click', finishRegistration);
+      $('undoButton').addEventListener('click', undoLastAction);
+      $('backButton').addEventListener('click', () => showView('entry'));
+      $('resetButton').addEventListener('click', resetRegistration);
+      $('saveButton').addEventListener('click', saveRegistration);
+      $('exportButton').addEventListener('click', exportData);
+      $('saveSettingsButton').addEventListener('click', saveSettings);
+      document.querySelectorAll('[data-stage]').forEach(button => button.addEventListener('click', () => {
+        if (!button.disabled) showView(button.dataset.stage);
+      }));
+      updateClock(); window.setInterval(updateClock, 30000); renderSeats(); renderHistory(); loadSettings(); setupVoice();
+    })();
+  </script>
+</body>
+</html>
