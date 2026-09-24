@@ -63,6 +63,10 @@
       display: grid; grid-template-columns: minmax(260px, 1.5fr) minmax(150px, .5fr); gap: 14px;
       background: rgba(255,253,248,.86); padding: 18px; border: 2px solid rgba(255,255,255,.92); border-radius: 30px; box-shadow: var(--shadow); margin-bottom: 24px; backdrop-filter: blur(10px);
     }
+    .setup.late-setup { grid-template-columns: minmax(150px,.7fr) minmax(220px,1.2fr) minmax(180px,.8fr); }
+    .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(420px,100%); margin: 0 auto 14px; padding: 7px; border-radius: 20px; background: rgba(255,255,255,.7); box-shadow: var(--soft-shadow); }
+    .mode-switch button { min-height: 44px; border: 0; border-radius: 14px; background: transparent; color: var(--muted); font-weight: 900; cursor: pointer; }
+    .mode-switch button[aria-pressed="true"] { background: var(--purple); color: var(--ink); box-shadow: 0 4px 0 #9f8fc8; }
     label { display: grid; gap: 7px; font-size: .9rem; font-weight: 800; color: var(--muted); }
     input {
       width: 100%; min-height: 48px; border: 2px solid var(--line); border-radius: 16px; padding: 10px 13px; background: #fff; color: var(--ink); font-size: 1rem;
@@ -82,6 +86,7 @@
     .seat:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 2px 0 #dcd4dc; }
     .seat.submitted { background: var(--mint); color: #2c6e50; box-shadow: 0 7px 0 #87bea0, 0 12px 18px rgba(49,120,84,.15); }
     .seat.missing { background: var(--pink); color: #954567; box-shadow: 0 7px 0 #d68da9, 0 12px 18px rgba(149,69,103,.15); }
+    .late-mode .seat.submitted { background: var(--yellow); color: #775a19; box-shadow: 0 7px 0 #d7b95f, 0 12px 18px rgba(119,90,25,.15); }
     .seat.suspended { background: #ddd9df; color: #827b88; box-shadow: 0 7px 0 #bbb5bf; cursor: not-allowed; position: relative; }
     .seat.suspended::after { content: "休"; position: absolute; right: 7px; top: 5px; font-size: .67rem; }
     .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 18px; color: var(--muted); font-weight: 750; font-size: .9rem; }
@@ -126,6 +131,7 @@
     .record small { margin-top: 5px; color: var(--muted); line-height: 1.45; }
     .record .badge { background: var(--mint); padding: 7px 10px; border-radius: 999px; font-weight: 900; white-space: nowrap; }
     .empty { color: var(--muted); padding: 8px 0; }
+    [hidden] { display: none !important; }
     .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 140%); opacity: 0; background: var(--ink); color: white; padding: 12px 18px; border-radius: 16px; font-weight: 800; transition: .25s ease; z-index: 5; box-shadow: var(--soft-shadow); }
     .toast.show { transform: translate(-50%, 0); opacity: 1; }
     @media (max-width: 900px) {
@@ -136,7 +142,8 @@
       .page { width: min(100% - 20px, 1180px); padding-top: 18px; }
       .topbar { align-items: flex-start; }
       .clock { font-size: .85rem; }
-      .setup { grid-template-columns: minmax(0,1fr) 92px; }
+      .setup, .setup.late-setup { grid-template-columns: minmax(0,1fr) minmax(110px,.55fr); }
+      .setup.late-setup label:first-child { grid-column: 1 / -1; }
       .seat-grid { grid-template-columns: repeat(auto-fit, minmax(42px, 1fr)); gap: 8px; }
       .clay-card { padding: 17px; border-radius: 25px; }
       .seat { border-radius: 16px; }
@@ -172,25 +179,30 @@
     </nav>
 
     <section id="entryView" class="view active" aria-label="登記面板">
-    <section class="setup" aria-label="本次作業資料">
-      <label>作業名稱<input id="assignmentName" value="數學習作3回" maxlength="6" title="最多 6 個字" autocomplete="off"></label>
-      <label>收作業座號<input id="collectorSeat" inputmode="numeric" placeholder="例如：12" autocomplete="off"></label>
+    <div class="mode-switch" aria-label="登記類型">
+      <button id="initialModeButton" type="button" aria-pressed="true">一般收件</button>
+      <button id="lateModeButton" type="button" aria-pressed="false">補交登記</button>
+    </div>
+    <section id="setupPanel" class="setup" aria-label="本次作業資料">
+      <label id="originalDateField" hidden>原收件日期<input id="originalDate" type="date" autocomplete="off"></label>
+      <label>作業名稱<input id="assignmentName" value="數學習作3回" maxlength="12" title="最多 12 個字" autocomplete="off"></label>
+      <label>收作業人<input id="collectorSeat" maxlength="20" placeholder="例如：12號或王小明" autocomplete="off"></label>
     </section>
 
     <div class="app-grid">
       <section class="clay-card" aria-labelledby="seatTitle">
-        <div class="panel-head"><h2 id="seatTitle">座號总览</h2><span class="count">32 位在籍 · 26 號休學</span></div>
+        <div class="panel-head"><h2 id="seatTitle">座號總覽</h2><span id="seatHint" class="count">32 位在籍 · 26 號休學</span></div>
         <div class="voice-toolbar" aria-label="語音登記工具列">
           <button class="mic" id="micButton" type="button" aria-label="開始或停止語音辨識">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V20h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2.07A7 7 0 0 1 5 11a1 1 0 1 1 2 0 5 5 0 0 0 10 0Z"/></svg>
           </button>
-          <p class="voice-state" id="voiceState">點麥克風開始<small>可說「作業名稱 數學習作」或念座號</small></p>
+          <p class="voice-state" id="voiceState">點麥克風開始<small>可說「作業名稱 數學習作」、「收作業人 12號」或念座號</small></p>
           <button class="tool-icon" id="undoButton" type="button" aria-label="返回上一筆" disabled>↶</button>
           <button class="btn primary" id="finishButton" type="button">登記結束</button>
         </div>
         <div class="transcript" id="transcript" aria-live="polite">等待語音內容…</div>
         <div id="seatGrid" class="seat-grid" aria-label="學生繳交狀態"></div>
-        <div class="legend"><span><i class="dot" style="background:var(--mint)"></i>已交</span><span><i class="dot" style="background:var(--pink)"></i>缺交</span><span><i class="dot" style="background:#ddd9df"></i>休學</span></div>
+        <div class="legend"><span><i id="selectedDot" class="dot" style="background:var(--mint)"></i><b id="selectedLegend">已交</b></span><span id="missingLegend"><i class="dot" style="background:var(--pink)"></i>缺交</span><span><i class="dot" style="background:#ddd9df"></i>休學</span></div>
         <button class="btn danger clear-button" id="resetButton" type="button">清除本次登記</button>
       </section>
     </div>
@@ -200,11 +212,11 @@
       <section class="clay-card result-card" aria-labelledby="summaryTitle">
         <div class="panel-head"><div><h2 id="summaryTitle">本次登記結果</h2><p id="resultMeta" class="result-meta"></p></div></div>
         <div class="stats">
-          <div class="stat"><strong id="submittedCount">0</strong><span>已交</span></div>
+          <div class="stat"><strong id="submittedCount">0</strong><span id="submittedLabel">已交</span></div>
           <div class="stat"><strong id="pendingCount">32</strong><span id="pendingLabel">待確認</span></div>
-          <div class="stat"><strong>1</strong><span>休學</span></div>
+          <div class="stat"><strong id="thirdStat">1</strong><span id="thirdLabel">休學</span></div>
         </div>
-        <div id="missingBox" class="missing-box" aria-live="polite"><strong>缺交座號</strong><p id="missingList"></p></div>
+        <div id="missingBox" class="missing-box" aria-live="polite"><strong id="missingTitle">缺交座號</strong><p id="missingList"></p></div>
         <div class="actions">
           <button class="btn danger" id="backButton" type="button">返回修改</button>
           <button class="btn primary" id="saveButton" type="button" disabled>匯出並送出</button>
@@ -230,6 +242,7 @@
       const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxAd-gjOzi7UaWyixV5TSxGUUSDJxhyKjZqL35B0brI0sVs_0FOOFFQumw-83UFTlFm/exec';
       const submitted = new Set();
       const actionHistory = [];
+      let mode = 'initial';
       let finished = false;
       let startedAt = new Date();
       let recognition = null;
@@ -258,26 +271,27 @@
         if (!match) return false;
         const name = match[1].trim();
         if (!name) { showToast('請在作業名稱後說出名稱'); return true; }
-        if ([...name].length > 6) { showToast('作業名稱最多 6 個字'); return true; }
+        if ([...name].length > 12) { showToast('作業名稱最多 12 個字'); return true; }
         $('assignmentName').value = name;
         showToast(`已設定作業名稱：${name}`);
         return true;
       }
 
-      function parseCollectorSeat(text) {
-        const match = text.match(/收作業(?:的)?(?:同學)?(?:座號|座号|是)?\s*(\d{1,2}|[一二三四五六七八九十兩两]{1,3})\s*號?/);
+      function parseCollector(text) {
+        const match = text.match(/收作業人\s*[:：]?\s*(.+)$/);
         if (!match) return false;
-        const seat = chineseToNumber(match[1]);
-        if (!seat || seat > 33 || seat === SUSPENDED) return false;
-        $('collectorSeat').value = String(seat);
-        showToast(`已記錄收作業座號：${seat} 號`);
+        const collector = match[1].trim();
+        if (!collector) { showToast('請在「收作業人」後說出座號或姓名'); return true; }
+        if ([...collector].length > 20) { showToast('收作業人最多 20 個字'); return true; }
+        $('collectorSeat').value = collector;
+        showToast(`已記錄收作業人：${collector}`);
         return true;
       }
 
       function handleSpeech(text) {
         $('transcript').textContent = text;
         if (parseAssignmentName(text)) return;
-        if (parseCollectorSeat(text)) return;
+        if (parseCollector(text)) return;
         if (/剛剛念錯|刚刚念错|撤銷上一筆|撤销上一笔|返回上一筆|返回上一笔|取消上一筆|取消上一笔/.test(text)) { undoLastAction(); return; }
         if (/登記結束|登记结束|結束登記|结束登记/.test(text)) { finishRegistration(); return; }
         const seats = extractSeatNumbers(text);
@@ -287,7 +301,7 @@
         seats.forEach(n => cancelling ? submitted.delete(n) : submitted.add(n));
         finished = false;
         renderSeats();
-        showToast(cancelling ? `已取消 ${seats.join('、')} 號` : `已登記 ${seats.join('、')} 號`);
+        showToast(cancelling ? `已取消 ${seats.join('、')} 號` : mode === 'late' ? `已選擇 ${seats.join('、')} 號補交` : `已登記 ${seats.join('、')} 號`);
       }
 
       function renderSeats() {
@@ -303,21 +317,35 @@
           } else {
             const isSubmitted = submitted.has(n);
             if (isSubmitted) button.classList.add('submitted');
-            else if (finished) button.classList.add('missing');
+            else if (finished && mode === 'initial') button.classList.add('missing');
             button.setAttribute('aria-pressed', String(isSubmitted));
-            button.setAttribute('aria-label', `${n} 號，${isSubmitted ? '已交' : finished ? '缺交' : '待確認'}`);
+            button.setAttribute('aria-label', `${n} 號，${isSubmitted ? (mode === 'late' ? '已選為補交' : '已交') : finished && mode === 'initial' ? '缺交' : '待確認'}`);
             button.addEventListener('click', () => { rememberCurrentState(); isSubmitted ? submitted.delete(n) : submitted.add(n); finished = false; renderSeats(); });
           }
           grid.appendChild(button);
         }
         $('submittedCount').textContent = String(submitted.size);
-        $('pendingCount').textContent = String(ACTIVE_TOTAL - submitted.size);
-        $('pendingLabel').textContent = finished ? '缺交' : '待確認';
+        if (mode === 'late') {
+          const days = getLateDays();
+          $('submittedLabel').textContent = '補交人數';
+          $('pendingCount').textContent = days ? `第${days}日` : '—';
+          $('pendingLabel').textContent = '補交時限';
+          $('thirdStat').textContent = '3';
+          $('thirdLabel').textContent = '最多天數';
+        } else {
+          $('submittedLabel').textContent = '已交';
+          $('pendingCount').textContent = String(ACTIVE_TOTAL - submitted.size);
+          $('pendingLabel').textContent = finished ? '缺交' : '待確認';
+          $('thirdStat').textContent = '1';
+          $('thirdLabel').textContent = '休學';
+        }
         $('missingBox').classList.toggle('show', finished);
         $('saveButton').disabled = !finished;
         $('undoButton').disabled = !actionHistory.length;
         document.querySelector('[data-stage="result"]').disabled = !finished;
-        if (finished) $('missingList').textContent = getMissing().length ? `${getMissing().join('、')} 號` : '全班皆已繳交 🎉';
+        if (finished) $('missingList').textContent = mode === 'late'
+          ? `${[...submitted].sort((a,b)=>a-b).join('、')} 號`
+          : getMissing().length ? `${getMissing().join('、')} 號` : '全班皆已繳交 🎉';
       }
 
       function rememberCurrentState() {
@@ -341,13 +369,56 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
+      function dateText(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      function getLateDays() {
+        const value = $('originalDate').value;
+        if (!value) return 0;
+        const original = new Date(`${value}T00:00:00`);
+        const today = new Date(); today.setHours(0,0,0,0);
+        return Math.round((today.getTime() - original.getTime()) / 86400000);
+      }
+
+      function setMode(nextMode) {
+        if (mode === nextMode) return;
+        if ((submitted.size || finished) && !window.confirm('切換模式會清除目前尚未送出的座號，確定繼續嗎？')) return;
+        mode = nextMode;
+        submitted.clear(); actionHistory.length = 0; finished = false; startedAt = new Date();
+        const isLate = mode === 'late';
+        $('entryView').classList.toggle('late-mode', isLate);
+        $('setupPanel').classList.toggle('late-setup', isLate);
+        $('originalDateField').hidden = !isLate;
+        $('initialModeButton').setAttribute('aria-pressed', String(!isLate));
+        $('lateModeButton').setAttribute('aria-pressed', String(isLate));
+        $('seatTitle').textContent = isLate ? '選擇補交座號' : '座號總覽';
+        $('seatHint').textContent = isLate ? '限原收件日後第 1～3 日' : '32 位在籍 · 26 號休學';
+        $('finishButton').textContent = isLate ? '補交確認' : '登記結束';
+        $('selectedLegend').textContent = isLate ? '本次補交' : '已交';
+        $('selectedDot').style.background = isLate ? 'var(--yellow)' : 'var(--mint)';
+        $('missingLegend').hidden = isLate;
+        $('missingTitle').textContent = isLate ? '補交座號' : '缺交座號';
+        $('saveButton').textContent = isLate ? '送出補交紀錄' : '匯出並送出';
+        $('transcript').textContent = isLate ? '等待語音內容；可直接念補交座號…' : '等待語音內容…';
+        renderSeats(); showView('entry');
+        showToast(isLate ? '已切換為補交登記' : '已切換為一般收件');
+      }
+
       function validateHeaderFields() {
         const name = $('assignmentName').value.trim();
-        const collectorSeat = Number($('collectorSeat').value);
+        const collector = $('collectorSeat').value.trim();
         if (!name) { $('assignmentName').focus(); showToast('請先填寫作業名稱'); return false; }
-        if ([...name].length > 6) { $('assignmentName').focus(); showToast('作業名稱最多 6 個字'); return false; }
-        if (!collectorSeat || collectorSeat < 1 || collectorSeat > 33 || collectorSeat === SUSPENDED) {
-          $('collectorSeat').focus(); showToast('請填寫正確的收作業座號'); return false;
+        if ([...name].length > 12) { $('assignmentName').focus(); showToast('作業名稱最多 12 個字'); return false; }
+        if (!collector) { $('collectorSeat').focus(); showToast('請填寫收作業人'); return false; }
+        if ([...collector].length > 20) { $('collectorSeat').focus(); showToast('收作業人最多 20 個字'); return false; }
+        if (mode === 'late') {
+          const days = getLateDays();
+          if (!days || days < 1 || days > 3) { $('originalDate').focus(); showToast('補交只接受原收件日後第 1 至第 3 日'); return false; }
+          if (!submitted.size) { showToast('請至少選擇一個補交座號'); return false; }
         }
         return true;
       }
@@ -363,9 +434,11 @@
         finished = true;
         stopListening();
         renderSeats();
-        $('resultMeta').textContent = `${$('assignmentName').value.trim()} · 收作業座號：${$('collectorSeat').value} 號`;
+        $('resultMeta').textContent = mode === 'late'
+          ? `${$('originalDate').value} · ${$('assignmentName').value.trim()} · 第 ${getLateDays()} 日補交 · 收作業人：${$('collectorSeat').value.trim()}`
+          : `${$('assignmentName').value.trim()} · 收作業人：${$('collectorSeat').value.trim()}`;
         showView('result');
-        showToast('登記完成，請確認缺交座號');
+        showToast(mode === 'late' ? '請確認補交座號' : '登記完成，請確認缺交座號');
       }
 
       function resetRegistration() {
@@ -383,29 +456,56 @@
       async function saveRegistration() {
         if (!validateHeaderFields()) { showView('entry'); return; }
         const name = $('assignmentName').value.trim();
-        const collectorSeat = Number($('collectorSeat').value);
-        const record = {
-          id: String(Date.now()), assignmentName: name, collectorSeat,
+        const collector = $('collectorSeat').value.trim();
+        const record = mode === 'late' ? {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2,10)}`,
+          type: 'late', assignmentName: name, collector,
+          originalDate: $('originalDate').value, completedAt: new Date().toISOString(),
+          lateDays: getLateDays(), lateSeats: [...submitted].sort((a,b)=>a-b)
+        } : {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2,10)}`,
+          type: 'initial', assignmentName: name, collector,
           startedAt: startedAt.toISOString(), completedAt: new Date().toISOString(),
           submitted: [...submitted].sort((a,b)=>a-b), missing: getMissing(), suspended: [SUSPENDED]
         };
         const records = loadRecords(); records.unshift(record);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 50)));
         renderHistory(); showView('export');
+        $('saveButton').disabled = true;
         const synced = await syncToGoogleSheets(record);
-        showToast(synced ? '已保存，並送出 Google Sheets 同步' : '雲端同步失敗，本機資料已保留');
+        $('saveButton').disabled = false;
+        showToast(synced.ok ? (synced.message || '已同步到 Google Sheets') : (synced.error || '雲端同步失敗，本機資料已保留'));
       }
 
       async function syncToGoogleSheets(record) {
-        if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GAS_WEB_APP_URL)) return false;
+        if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GAS_WEB_APP_URL)) return { ok:false, error:'同步網址不正確' };
         const body = new URLSearchParams({ payload: JSON.stringify(record) });
         try {
           await fetch(GAS_WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
-          return true;
+          for (let attempt = 0; attempt < 6; attempt += 1) {
+            await new Promise(resolve => window.setTimeout(resolve, 700));
+            const status = await readSyncStatus(record.id);
+            if (status && !status.pending) return status;
+          }
+          return { ok:false, error:'後台處理逾時，請稍後檢查匯出紀錄' };
         } catch {
-          showToast('雲端同步失敗，本機資料已保留');
-          return false;
+          return { ok:false, error:'雲端同步失敗，本機資料已保留' };
         }
+      }
+
+      function readSyncStatus(id) {
+        return new Promise(resolve => {
+          const callback = `hhStatus_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+          const script = document.createElement('script');
+          const cleanup = (value) => {
+            window.clearTimeout(timer); delete window[callback]; script.remove(); resolve(value);
+          };
+          window[callback] = cleanup;
+          script.onerror = () => cleanup(null);
+          script.src = `${GAS_WEB_APP_URL}?action=status&id=${encodeURIComponent(id)}&callback=${encodeURIComponent(callback)}`;
+          const timer = window.setTimeout(() => cleanup(null), 4500);
+          document.head.appendChild(script);
+        });
       }
 
       function renderHistory() {
@@ -419,8 +519,11 @@
           const title = document.createElement('strong'); title.textContent = r.assignmentName;
           const meta = document.createElement('small');
           const when = new Intl.DateTimeFormat('zh-TW', { dateStyle:'medium', timeStyle:'short' }).format(new Date(r.completedAt));
-          meta.textContent = `${when} · 收作業座號：${r.collectorSeat} 號 · 缺交：${r.missing.length ? r.missing.join('、') + ' 號' : '無'}`;
-          const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = `已交 ${r.submitted.length}`;
+          const collector = r.collector || (r.collectorSeat ? `${r.collectorSeat}號` : '未記錄');
+          meta.textContent = r.type === 'late'
+            ? `${when} · 原收件日 ${r.originalDate} · 收作業人：${collector} · 補交：${r.lateSeats.join('、')} 號`
+            : `${when} · 收作業人：${collector} · 缺交：${r.missing.length ? r.missing.join('、') + ' 號' : '無'}`;
+          const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = r.type === 'late' ? `第${r.lateDays}日補交` : `已交 ${r.submitted.length}`;
           info.append(title, meta); row.append(info, badge); list.appendChild(row);
         });
       }
@@ -462,6 +565,16 @@
       }
 
       function updateClock() { $('clock').textContent = new Intl.DateTimeFormat('zh-TW', { dateStyle:'medium', timeStyle:'short' }).format(new Date()); }
+      function setupLateDate() {
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+        const earliest = new Date(); earliest.setDate(earliest.getDate() - 3);
+        $('originalDate').max = dateText(yesterday);
+        $('originalDate').min = dateText(earliest);
+        $('originalDate').value = dateText(yesterday);
+        $('originalDate').addEventListener('change', renderSeats);
+      }
+      $('initialModeButton').addEventListener('click', () => setMode('initial'));
+      $('lateModeButton').addEventListener('click', () => setMode('late'));
       $('finishButton').addEventListener('click', finishRegistration);
       $('undoButton').addEventListener('click', undoLastAction);
       $('backButton').addEventListener('click', () => showView('entry'));
@@ -470,7 +583,7 @@
       document.querySelectorAll('[data-stage]').forEach(button => button.addEventListener('click', () => {
         if (!button.disabled) showView(button.dataset.stage);
       }));
-      updateClock(); window.setInterval(updateClock, 30000); renderSeats(); renderHistory(); setupVoice();
+      setupLateDate(); updateClock(); window.setInterval(updateClock, 30000); renderSeats(); renderHistory(); setupVoice();
     })();
   </script>
 </body>
