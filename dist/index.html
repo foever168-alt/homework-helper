@@ -64,6 +64,7 @@
       background: rgba(255,253,248,.86); padding: 18px; border: 2px solid rgba(255,255,255,.92); border-radius: 30px; box-shadow: var(--shadow); margin-bottom: 24px; backdrop-filter: blur(10px);
     }
     .setup.late-setup { grid-template-columns: minmax(150px,.7fr) minmax(220px,1.2fr) minmax(180px,.8fr); }
+    .required-hint { color: var(--muted); font-size: .78rem; font-weight: 700; }
     .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(420px,100%); margin: 0 auto 14px; padding: 7px; border-radius: 20px; background: rgba(255,255,255,.7); box-shadow: var(--soft-shadow); }
     .mode-switch button { min-height: 44px; border: 0; border-radius: 14px; background: transparent; color: var(--muted); font-weight: 900; cursor: pointer; }
     .mode-switch button[aria-pressed="true"] { background: var(--purple); color: var(--ink); box-shadow: 0 4px 0 #9f8fc8; }
@@ -186,7 +187,7 @@
     <section id="setupPanel" class="setup" aria-label="本次作業資料">
       <label id="originalDateField" hidden>原收件日期<input id="originalDate" type="date" autocomplete="off"></label>
       <label>作業名稱<input id="assignmentName" value="數學習作3回" maxlength="12" title="最多 12 個字" autocomplete="off"></label>
-      <label>收作業人<input id="collectorSeat" maxlength="20" placeholder="例如：12號或王小明" autocomplete="off"></label>
+      <label>收作業人<input id="collectorSeat" maxlength="20" placeholder="例如：12號或王小明" autocomplete="off" required aria-required="true"><small class="required-hint">必填</small></label>
     </section>
 
     <div class="app-grid">
