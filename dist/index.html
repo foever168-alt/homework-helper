@@ -64,10 +64,21 @@
       background: rgba(255,253,248,.86); padding: 18px; border: 2px solid rgba(255,255,255,.92); border-radius: 30px; box-shadow: var(--shadow); margin-bottom: 24px; backdrop-filter: blur(10px);
     }
     .setup.late-setup { grid-template-columns: repeat(4, minmax(150px,1fr)); }
+    .recent-assignments { grid-column: 1 / -1; padding: 12px 14px 14px; border-radius: 18px; background: #eef8fd; border: 2px solid #c4e2ef; }
+    .recent-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .recent-head strong { font-size: .92rem; }
+    .recent-refresh { border: 0; border-radius: 999px; padding: 6px 10px; background: white; color: var(--blue-deep); font-size: .78rem; font-weight: 900; cursor: pointer; }
+    .recent-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .recent-option { border: 0; border-radius: 14px; padding: 9px 11px; background: white; color: var(--ink); box-shadow: 0 4px 0 #acd3e4; font-size: .85rem; font-weight: 850; text-align: left; cursor: pointer; }
+    .recent-option:active { transform: translateY(3px); box-shadow: 0 1px 0 #acd3e4; }
+    .recent-empty { margin: 0; color: var(--muted); font-size: .84rem; font-weight: 750; }
     .required-hint { color: var(--muted); font-size: .78rem; font-weight: 700; }
     .mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(620px,100%); margin: 0 auto 14px; padding: 7px; border-radius: 20px; background: rgba(255,255,255,.7); box-shadow: var(--soft-shadow); }
     .mode-switch button { min-height: 44px; border: 0; border-radius: 14px; background: transparent; color: var(--muted); font-weight: 900; cursor: pointer; }
     .mode-switch button[aria-pressed="true"] { background: var(--purple); color: var(--ink); box-shadow: 0 4px 0 #9f8fc8; }
+    .segment-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; width: min(680px,100%); margin: -10px auto 20px; padding: 8px; border-radius: 20px; background: rgba(255,255,255,.72); box-shadow: var(--soft-shadow); }
+    .segment-picker button { min-height: 46px; border: 0; border-radius: 15px; background: #eeeaf4; color: var(--muted); font-weight: 900; cursor: pointer; }
+    .segment-picker button[aria-pressed="true"] { background: var(--blue); color: #315f78; box-shadow: 0 5px 0 #85b3cb; }
     label { display: grid; gap: 7px; font-size: .9rem; font-weight: 800; color: var(--muted); }
     input, select {
       width: 100%; min-height: 48px; border: 2px solid var(--line); border-radius: 16px; padding: 10px 13px; background: #fff; color: var(--ink); font-size: 1rem;
@@ -86,6 +97,7 @@
     .seat:hover:not(:disabled) { transform: translateY(-2px); }
     .seat:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 2px 0 #dcd4dc; }
     .seat.submitted { background: var(--mint); color: #2c6e50; box-shadow: 0 7px 0 #87bea0, 0 12px 18px rgba(49,120,84,.15); }
+    .seat.exempt { background: var(--blue); color: #315f78; box-shadow: 0 7px 0 #85b3cb, 0 12px 18px rgba(49,95,120,.15); }
     .seat.missing { background: var(--pink); color: #954567; box-shadow: 0 7px 0 #d68da9, 0 12px 18px rgba(149,69,103,.15); }
     .seat.out-of-scope { background: #e8e5ee; color: #9a94a6; box-shadow: 0 7px 0 #cbc5d2; cursor: not-allowed; opacity: .72; }
     .late-mode .seat.submitted { background: var(--yellow); color: #775a19; box-shadow: 0 7px 0 #d7b95f, 0 12px 18px rgba(119,90,25,.15); }
@@ -112,6 +124,10 @@
     .tool-icon:disabled { opacity: .45; cursor: not-allowed; }
     .voice-toolbar .btn { min-height: 48px; white-space: nowrap; }
     .transcript { margin: 0 0 14px; min-height: 44px; border: 2px dashed rgba(79,130,163,.25); border-radius: 15px; padding: 9px 11px; background: rgba(255,255,255,.62); line-height: 1.4; color: var(--muted); }
+    .exempt-tools { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin: 0 0 14px; }
+    .exempt-tools .btn { min-height: 44px; background: var(--blue); box-shadow: 0 5px 0 #85b3cb; }
+    .exempt-tools .btn[aria-pressed="true"] { background: #7ebfdc; box-shadow: 0 5px 0 #4f82a3; color: #244e65; }
+    .exempt-tools small { color: var(--muted); font-weight: 750; }
     .clear-button { margin-top: 14px; }
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
     .stat { text-align: center; border-radius: 19px; padding: 12px 8px; background: #fff; box-shadow: var(--soft-shadow); }
@@ -126,6 +142,7 @@
     .missing-box { display: none; margin-top: 18px; padding: 16px; border-radius: 21px; background: #fff0f4; border: 2px solid #efbacd; }
     .missing-box.show { display: block; }
     .missing-box p { margin: 7px 0 0; line-height: 1.55; font-weight: 800; }
+    .exempt-box { background: #eef8fd; border-color: #9dcfe5; }
     .history { margin-top: 24px; }
     .history-list { display: grid; gap: 12px; margin-top: 15px; }
     .record { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; background: #fff; border-radius: 18px; box-shadow: 0 5px 0 #ded6df; }
@@ -153,6 +170,8 @@
       .voice-state { font-size: .88rem; }
       .voice-state small { font-size: .74rem; }
       .mode-switch button { font-size: .84rem; padding-inline: 6px; }
+      .segment-picker { margin-top: -10px; gap: 6px; }
+      .segment-picker button { font-size: .82rem; padding-inline: 5px; }
     }
     @media (max-width: 420px) {
       .seat-grid { grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)); gap: 7px; }
@@ -191,7 +210,16 @@
       <label id="lateGroupField" hidden>原收件範圍<select id="lateGroup"><option value="all">全班</option><option value="g1">1～10號</option><option value="g2">11～20號</option><option value="g3">21～33號</option></select></label>
       <label>作業名稱<input id="assignmentName" value="數學習作3回" maxlength="12" title="最多 12 個字" autocomplete="off"></label>
       <label>收作業人<input id="collectorSeat" maxlength="20" placeholder="例如：12號或王小明" autocomplete="off" required aria-required="true"><small class="required-hint">必填</small></label>
+      <div id="recentAssignments" class="recent-assignments" hidden>
+        <div class="recent-head"><strong>最近三日可補交作業</strong><button id="recentRefreshButton" class="recent-refresh" type="button">重新整理</button></div>
+        <div id="recentAssignmentList" class="recent-list" aria-live="polite"><p class="recent-empty">切換到補交登記後載入</p></div>
+      </div>
     </section>
+    <div id="segmentedGroupPicker" class="segment-picker" aria-label="選擇分段收件範圍" hidden>
+      <button type="button" data-segment="0" aria-pressed="true">1～10 號</button>
+      <button type="button" data-segment="1" aria-pressed="false">11～20 號</button>
+      <button type="button" data-segment="2" aria-pressed="false">21～33 號</button>
+    </div>
 
     <div class="app-grid">
       <section class="clay-card" aria-labelledby="seatTitle">
@@ -205,8 +233,12 @@
           <button class="btn primary" id="finishButton" type="button">登記結束</button>
         </div>
         <div class="transcript" id="transcript" aria-live="polite">等待語音內容…</div>
+        <div id="exemptTools" class="exempt-tools">
+          <button class="btn" id="exemptButton" type="button" aria-pressed="false">本次不用收作業</button>
+          <small id="exemptHint">按下後，再點選本次免交的座號</small>
+        </div>
         <div id="seatGrid" class="seat-grid" aria-label="學生繳交狀態"></div>
-        <div class="legend"><span><i id="selectedDot" class="dot" style="background:var(--mint)"></i><b id="selectedLegend">已交</b></span><span id="missingLegend"><i class="dot" style="background:var(--pink)"></i>缺交</span><span id="outOfScopeLegend" hidden><i class="dot" style="background:#e8e5ee"></i>本輪不收</span><span><i class="dot" style="background:#ddd9df"></i>休學</span></div>
+        <div class="legend"><span><i id="selectedDot" class="dot" style="background:var(--mint)"></i><b id="selectedLegend">已交</b></span><span id="missingLegend"><i class="dot" style="background:var(--pink)"></i>缺交</span><span id="exemptLegend"><i class="dot" style="background:var(--blue)"></i>本次不用收</span><span id="outOfScopeLegend" hidden><i class="dot" style="background:#e8e5ee"></i>本輪不收</span><span><i class="dot" style="background:#ddd9df"></i>休學</span></div>
         <button class="btn danger clear-button" id="resetButton" type="button">清除本次登記</button>
       </section>
     </div>
@@ -221,6 +253,7 @@
           <div class="stat"><strong id="thirdStat">1</strong><span id="thirdLabel">休學</span></div>
         </div>
         <div id="missingBox" class="missing-box" aria-live="polite"><strong id="missingTitle">缺交座號</strong><p id="missingList"></p></div>
+        <div id="exemptBox" class="missing-box exempt-box" aria-live="polite"><strong>本次不用收作業</strong><p id="exemptList"></p></div>
         <div class="actions">
           <button class="btn danger" id="backButton" type="button">返回修改</button>
           <button class="btn primary" id="saveButton" type="button" disabled>匯出並送出</button>
@@ -250,9 +283,11 @@
         { id: 'g3', label: '21～33號', start: 21, end: 33 }
       ];
       const submitted = new Set();
+      const exempt = new Set();
       const actionHistory = [];
       let mode = 'initial';
       let collectionGroupIndex = 0;
+      let markingExempt = false;
       let finished = false;
       let startedAt = new Date();
       let recognition = null;
@@ -291,6 +326,25 @@
       function getScopeLabel() {
         const group = getScopeGroup();
         return group ? group.label : '全班';
+      }
+
+      function renderSegmentPicker() {
+        document.querySelectorAll('[data-segment]').forEach(button => {
+          button.setAttribute('aria-pressed', String(Number(button.dataset.segment) === collectionGroupIndex));
+        });
+      }
+
+      function selectSegmentGroup(nextIndex) {
+        if (mode !== 'segmented' || nextIndex === collectionGroupIndex) return;
+        if ((submitted.size || exempt.size || finished) && !window.confirm('切換分段會清除目前尚未送出的座號與作業名稱，確定繼續嗎？')) return;
+        collectionGroupIndex = nextIndex;
+        submitted.clear(); exempt.clear(); actionHistory.length = 0; finished = false; startedAt = new Date();
+        $('assignmentName').value = '';
+        const group = getCurrentGroup();
+        $('seatHint').textContent = `第 ${collectionGroupIndex + 1} 輪 · 本輪收 ${group.label}`;
+        $('transcript').textContent = `本輪只收 ${group.label}；請先說作業名稱，再念座號。`;
+        renderSegmentPicker(); renderSeats(); showView('entry');
+        showToast(`已切換為 ${group.label}`);
       }
 
       function chineseToNumber(raw) {
@@ -338,6 +392,20 @@
         if (/剛剛念錯|刚刚念错|撤銷上一筆|撤销上一笔|返回上一筆|返回上一笔|取消上一筆|取消上一笔/.test(text)) { undoLastAction(); return; }
         if (/登記結束|登记结束|結束登記|结束登记/.test(text)) { finishRegistration(); return; }
         const spokenSeats = extractSeatNumbers(text);
+        const exemptCommand = /本次不用收(?:作業|作业)?|本次免交/.test(text);
+        if (exemptCommand) {
+          if (mode !== 'initial') { showToast('「本次不用收」只適用於一般收件'); return; }
+          if (!spokenSeats.length) { markingExempt = true; renderSeats(); showToast('請接著點選本次不用收作業的座號'); return; }
+          const cancellingExempt = /取消|恢復|恢复|改回/.test(text);
+          rememberCurrentState();
+          spokenSeats.forEach(n => {
+            if (cancellingExempt) exempt.delete(n);
+            else { exempt.add(n); submitted.delete(n); }
+          });
+          finished = false; renderSeats();
+          showToast(cancellingExempt ? `已取消 ${spokenSeats.join('、')} 號免交` : `${spokenSeats.join('、')} 號本次不用收作業`);
+          return;
+        }
         if (!spokenSeats.length) return;
         const seats = spokenSeats.filter(isSeatInScope);
         const ignored = spokenSeats.filter(n => !isSeatInScope(n));
@@ -347,7 +415,10 @@
         }
         const cancelling = /取消|沒有交|没交|未交|刪除|删除/.test(text);
         rememberCurrentState();
-        seats.forEach(n => cancelling ? submitted.delete(n) : submitted.add(n));
+        seats.forEach(n => {
+          if (cancelling) submitted.delete(n);
+          else { submitted.add(n); exempt.delete(n); }
+        });
         finished = false;
         renderSeats();
         if (ignored.length) showToast(`已登記 ${seats.join('、')} 號；非本輪 ${ignored.join('、')} 號已忽略`);
@@ -370,11 +441,21 @@
             button.classList.add('out-of-scope'); button.disabled = true; button.setAttribute('aria-label', `${n} 號，本輪不收`);
           } else {
             const isSubmitted = submitted.has(n);
-            if (isSubmitted) button.classList.add('submitted');
+            const isExempt = exempt.has(n);
+            if (isExempt) button.classList.add('exempt');
+            else if (isSubmitted) button.classList.add('submitted');
             else if (finished && mode !== 'late') button.classList.add('missing');
-            button.setAttribute('aria-pressed', String(isSubmitted));
-            button.setAttribute('aria-label', `${n} 號，${isSubmitted ? (mode === 'late' ? '已選為補交' : '已交') : finished && mode !== 'late' ? '缺交' : '待確認'}`);
-            button.addEventListener('click', () => { rememberCurrentState(); isSubmitted ? submitted.delete(n) : submitted.add(n); finished = false; renderSeats(); });
+            button.setAttribute('aria-pressed', String(isSubmitted || isExempt));
+            button.setAttribute('aria-label', `${n} 號，${isExempt ? '本次不用收作業' : isSubmitted ? (mode === 'late' ? '已選為補交' : '已交') : finished && mode !== 'late' ? '缺交' : '待確認'}`);
+            button.addEventListener('click', () => {
+              rememberCurrentState();
+              if (mode === 'initial' && markingExempt) {
+                if (isExempt) exempt.delete(n);
+                else { exempt.add(n); submitted.delete(n); }
+              } else if (isSubmitted) submitted.delete(n);
+              else { submitted.add(n); exempt.delete(n); }
+              finished = false; renderSeats();
+            });
           }
           grid.appendChild(button);
         }
@@ -388,12 +469,17 @@
           $('thirdLabel').textContent = '最多天數';
         } else {
           $('submittedLabel').textContent = '已交';
-          $('pendingCount').textContent = String(targetSeats.length - submitted.size);
+          $('pendingCount').textContent = String(targetSeats.length - submitted.size - exempt.size);
           $('pendingLabel').textContent = finished ? '缺交' : '待確認';
-          $('thirdStat').textContent = mode === 'segmented' ? String(targetSeats.length) : '1';
-          $('thirdLabel').textContent = mode === 'segmented' ? '本輪人數' : '休學';
+          $('thirdStat').textContent = mode === 'segmented' ? String(targetSeats.length) : String(exempt.size);
+          $('thirdLabel').textContent = mode === 'segmented' ? '本輪人數' : '本次不用收';
         }
         $('missingBox').classList.toggle('show', finished);
+        $('exemptBox').classList.toggle('show', finished && mode === 'initial' && exempt.size > 0);
+        $('exemptList').textContent = exempt.size ? `${[...exempt].sort((a,b)=>a-b).join('、')} 號` : '無';
+        $('exemptButton').setAttribute('aria-pressed', String(markingExempt));
+        $('exemptButton').textContent = markingExempt ? '正在標記不用收' : '本次不用收作業';
+        $('exemptHint').textContent = markingExempt ? '現在點選座號；再按一次按鈕可結束標記' : '按下後，再點選本次免交的座號';
         $('saveButton').disabled = !finished;
         $('undoButton').disabled = !actionHistory.length;
         document.querySelector('[data-stage="result"]').disabled = !finished;
@@ -403,14 +489,16 @@
       }
 
       function rememberCurrentState() {
-        actionHistory.push([...submitted]);
+        actionHistory.push({ submitted: [...submitted], exempt: [...exempt] });
         if (actionHistory.length > 30) actionHistory.shift();
       }
 
       function undoLastAction() {
         if (!actionHistory.length) { showToast('目前沒有可返回的上一筆'); return; }
         const previous = actionHistory.pop();
-        submitted.clear(); previous.forEach(n => submitted.add(n));
+        submitted.clear(); exempt.clear();
+        previous.submitted.forEach(n => submitted.add(n));
+        previous.exempt.forEach(n => exempt.add(n));
         finished = false; renderSeats(); showView('entry'); showToast('已返回上一筆登記');
       }
 
@@ -440,9 +528,9 @@
 
       function setMode(nextMode) {
         if (mode === nextMode) return;
-        if ((submitted.size || finished) && !window.confirm('切換模式會清除目前尚未送出的座號，確定繼續嗎？')) return;
+        if ((submitted.size || exempt.size || finished) && !window.confirm('切換模式會清除目前尚未送出的座號，確定繼續嗎？')) return;
         mode = nextMode;
-        submitted.clear(); actionHistory.length = 0; finished = false; startedAt = new Date();
+        submitted.clear(); exempt.clear(); actionHistory.length = 0; finished = false; markingExempt = false; startedAt = new Date();
         const isLate = mode === 'late';
         const isSegmented = mode === 'segmented';
         if (isSegmented) {
@@ -453,6 +541,10 @@
         $('setupPanel').classList.toggle('late-setup', isLate);
         $('originalDateField').hidden = !isLate;
         $('lateGroupField').hidden = !isLate;
+        $('recentAssignments').hidden = !isLate;
+        $('segmentedGroupPicker').hidden = !isSegmented;
+        $('exemptTools').hidden = mode !== 'initial';
+        $('exemptLegend').hidden = mode !== 'initial';
         $('initialModeButton').setAttribute('aria-pressed', String(mode === 'initial'));
         $('segmentedModeButton').setAttribute('aria-pressed', String(isSegmented));
         $('lateModeButton').setAttribute('aria-pressed', String(isLate));
@@ -466,7 +558,8 @@
         $('missingTitle').textContent = isLate ? '補交座號' : '缺交座號';
         $('saveButton').textContent = isLate ? '送出補交紀錄' : '匯出並送出';
         $('transcript').textContent = isLate ? '等待語音內容；可直接念補交座號…' : isSegmented ? `第 1 輪只收 ${getScopeLabel()}；先說作業名稱，再念座號。` : '等待語音內容…';
-        renderSeats(); showView('entry');
+        renderSegmentPicker(); renderSeats(); showView('entry');
+        if (isLate) loadRecentAssignments();
         showToast(isLate ? '已切換為補交登記' : isSegmented ? `分段輪收已從 ${getScopeLabel()} 開始` : '已切換為一般收件');
       }
 
@@ -486,7 +579,7 @@
       }
 
       function getMissing() {
-        return getTargetSeats().filter(seat => !submitted.has(seat));
+        return getTargetSeats().filter(seat => !submitted.has(seat) && !exempt.has(seat));
       }
 
       function finishRegistration() {
@@ -502,8 +595,8 @@
       }
 
       function resetRegistration() {
-        if ((submitted.size || finished) && !window.confirm('確定清除這次尚未保存的登記嗎？')) return;
-        submitted.clear(); finished = false; startedAt = new Date();
+        if ((submitted.size || exempt.size || finished) && !window.confirm('確定清除這次尚未保存的登記嗎？')) return;
+        submitted.clear(); exempt.clear(); finished = false; markingExempt = false; startedAt = new Date();
         actionHistory.length = 0;
         $('transcript').textContent = '等待語音內容…';
         renderSeats(); showView('entry'); showToast('已開始新的登記');
@@ -512,12 +605,12 @@
       function advanceSegmentedRound() {
         collectionGroupIndex = (collectionGroupIndex + 1) % COLLECTION_GROUPS.length;
         const nextGroup = getCurrentGroup();
-        submitted.clear(); actionHistory.length = 0; finished = false; startedAt = new Date();
+        submitted.clear(); exempt.clear(); actionHistory.length = 0; finished = false; markingExempt = false; startedAt = new Date();
         $('assignmentName').value = '';
         $('seatHint').textContent = `第 ${collectionGroupIndex + 1} 輪 · 本輪收 ${nextGroup.label}`;
         $('transcript').textContent = `下一輪只收 ${nextGroup.label}；請先說新的作業名稱，再念座號。`;
         $('outOfScopeLegend').hidden = false;
-        renderSeats(); showView('entry');
+        renderSegmentPicker(); renderSeats(); showView('entry');
         $('assignmentName').focus();
         showToast(`上一輪已送出；下一輪收 ${nextGroup.label}`);
       }
@@ -541,6 +634,7 @@
           type: mode === 'segmented' ? 'segmented' : 'initial', assignmentName: name, collector,
           startedAt: startedAt.toISOString(), completedAt: new Date().toISOString(),
           submitted: [...submitted].sort((a,b)=>a-b), missing: getMissing(), suspended: [SUSPENDED],
+          exempt: mode === 'initial' ? [...exempt].sort((a,b)=>a-b) : [],
           collectionGroup: mode === 'segmented' ? getCurrentGroup().id : 'all'
         };
         const records = loadRecords(); records.unshift(record);
@@ -572,19 +666,91 @@
         }
       }
 
-      function readSyncStatus(id) {
+      function requestJsonp(params, timeout = 4500) {
         return new Promise(resolve => {
-          const callback = `hhStatus_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+          const callback = `hhJsonp_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
           const script = document.createElement('script');
           const cleanup = (value) => {
             window.clearTimeout(timer); delete window[callback]; script.remove(); resolve(value);
           };
           window[callback] = cleanup;
           script.onerror = () => cleanup(null);
-          script.src = `${GAS_WEB_APP_URL}?action=status&id=${encodeURIComponent(id)}&callback=${encodeURIComponent(callback)}`;
-          const timer = window.setTimeout(() => cleanup(null), 4500);
+          const query = new URLSearchParams({ ...params, callback });
+          script.src = `${GAS_WEB_APP_URL}?${query.toString()}`;
+          const timer = window.setTimeout(() => cleanup(null), timeout);
           document.head.appendChild(script);
         });
+      }
+
+      function readSyncStatus(id) {
+        return requestJsonp({ action: 'status', id });
+      }
+
+      function getLocalRecentAssignments() {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const unique = new Map();
+        loadRecords().forEach(record => {
+          if (record.type === 'late' || !record.completedAt) return;
+          const completed = new Date(record.completedAt);
+          const completedDay = new Date(completed.getFullYear(), completed.getMonth(), completed.getDate());
+          const days = Math.round((today.getTime() - completedDay.getTime()) / 86400000);
+          if (days < 1 || days > 3) return;
+          const item = {
+            originalDate: dateText(completed),
+            assignmentName: String(record.assignmentName || '').trim(),
+            collectionGroup: record.collectionGroup || 'all'
+          };
+          const key = `${item.originalDate}|${item.assignmentName}|${item.collectionGroup}`;
+          if (item.assignmentName && !unique.has(key)) unique.set(key, item);
+        });
+        return [...unique.values()].sort((a,b) => b.originalDate.localeCompare(a.originalDate));
+      }
+
+      function applyRecentAssignment(item) {
+        if (mode !== 'late') return;
+        if (submitted.size && !window.confirm('改選作業會清除目前選取的補交座號，確定繼續嗎？')) return;
+        submitted.clear(); exempt.clear(); actionHistory.length = 0; finished = false;
+        $('assignmentName').value = item.assignmentName;
+        $('originalDate').value = item.originalDate;
+        $('lateGroup').value = item.collectionGroup || 'all';
+        $('lateGroup').dataset.previous = $('lateGroup').value;
+        $('seatHint').textContent = `限第 1～3 日 · ${getScopeLabel()}`;
+        $('outOfScopeLegend').hidden = !getScopeGroup();
+        renderSeats();
+        showToast(`已帶入 ${item.originalDate} · ${item.assignmentName}`);
+      }
+
+      function renderRecentAssignments(items) {
+        const list = $('recentAssignmentList');
+        list.textContent = '';
+        if (!items.length) {
+          const empty = document.createElement('p'); empty.className = 'recent-empty';
+          empty.textContent = '最近三個可補交日期沒有找到作業，仍可手動輸入。';
+          list.appendChild(empty); return;
+        }
+        items.forEach(item => {
+          const group = getGroupById(item.collectionGroup);
+          const button = document.createElement('button');
+          button.type = 'button'; button.className = 'recent-option';
+          button.textContent = `${item.originalDate.slice(5).replace('-', '/')}｜${item.assignmentName}${group ? `｜${group.label}` : '｜全班'}`;
+          button.addEventListener('click', () => applyRecentAssignment(item));
+          list.appendChild(button);
+        });
+      }
+
+      async function loadRecentAssignments() {
+        const list = $('recentAssignmentList');
+        list.textContent = '';
+        const loading = document.createElement('p'); loading.className = 'recent-empty'; loading.textContent = '正在載入最近三日作業…'; list.appendChild(loading);
+        if (['127.0.0.1', 'localhost'].includes(window.location.hostname)) {
+          renderRecentAssignments(getLocalRecentAssignments()); return;
+        }
+        const response = await requestJsonp({ action: 'recentAssignments' }, 6500);
+        if (!response || !response.ok || !Array.isArray(response.assignments)) {
+          list.textContent = '';
+          const failed = document.createElement('p'); failed.className = 'recent-empty'; failed.textContent = '目前無法取得清單，仍可手動輸入。'; list.appendChild(failed); return;
+        }
+        renderRecentAssignments(response.assignments);
       }
 
       function renderHistory() {
@@ -601,9 +767,10 @@
           const collector = r.collector || (r.collectorSeat ? `${r.collectorSeat}號` : '未記錄');
           const recordGroup = getGroupById(r.collectionGroup);
           const scopeText = recordGroup ? ` · 收件範圍：${recordGroup.label}` : '';
+          const exemptText = r.exempt && r.exempt.length ? ` · 本次不用收：${r.exempt.join('、')} 號` : '';
           meta.textContent = r.type === 'late'
             ? `${when} · 原收件日 ${r.originalDate}${scopeText} · 收作業人：${collector} · 補交：${r.lateSeats.join('、')} 號`
-            : `${when}${scopeText} · 收作業人：${collector} · 缺交：${r.missing.length ? r.missing.join('、') + ' 號' : '無'}`;
+            : `${when}${scopeText} · 收作業人：${collector} · 缺交：${r.missing.length ? r.missing.join('、') + ' 號' : '無'}${exemptText}`;
           const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = r.type === 'late' ? `第${r.lateDays}日補交` : r.type === 'segmented' ? recordGroup.label : `已交 ${r.submitted.length}`;
           info.append(title, meta); row.append(info, badge); list.appendChild(row);
         });
@@ -660,15 +827,24 @@
           return;
         }
         $('lateGroup').dataset.previous = $('lateGroup').value;
-        submitted.clear(); actionHistory.length = 0; finished = false;
+        submitted.clear(); exempt.clear(); actionHistory.length = 0; finished = false; markingExempt = false;
         $('seatHint').textContent = `限第 1～3 日 · ${getScopeLabel()}`;
         $('outOfScopeLegend').hidden = !getScopeGroup();
         renderSeats();
+      }
+      function toggleExemptMode() {
+        if (mode !== 'initial') return;
+        markingExempt = !markingExempt;
+        renderSeats();
+        showToast(markingExempt ? '請點選本次不用收作業的座號' : '已結束免交標記');
       }
       $('initialModeButton').addEventListener('click', () => setMode('initial'));
       $('segmentedModeButton').addEventListener('click', () => setMode('segmented'));
       $('lateModeButton').addEventListener('click', () => setMode('late'));
       $('lateGroup').addEventListener('change', updateLateGroup);
+      $('recentRefreshButton').addEventListener('click', loadRecentAssignments);
+      $('exemptButton').addEventListener('click', toggleExemptMode);
+      document.querySelectorAll('[data-segment]').forEach(button => button.addEventListener('click', () => selectSegmentGroup(Number(button.dataset.segment))));
       $('finishButton').addEventListener('click', finishRegistration);
       $('undoButton').addEventListener('click', undoLastAction);
       $('backButton').addEventListener('click', () => showView('entry'));
@@ -678,7 +854,7 @@
         if (!button.disabled) showView(button.dataset.stage);
       }));
       $('lateGroup').dataset.previous = 'all';
-      setupLateDate(); updateClock(); window.setInterval(updateClock, 30000); renderSeats(); renderHistory(); setupVoice();
+      setupLateDate(); updateClock(); window.setInterval(updateClock, 30000); renderSegmentPicker(); renderSeats(); renderHistory(); setupVoice();
     })();
   </script>
 </body>
