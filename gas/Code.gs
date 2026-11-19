@@ -209,15 +209,18 @@ function ensureIndexSheet_(spreadsheet) {
     sheet = sheets.length === 1 && sheets[0].getLastRow() === 0 ? sheets[0] : spreadsheet.insertSheet();
     sheet.setName('總覽');
   }
-  if (sheet.getRange('A1').getValue() !== '收作業小老師收作業') {
+  const isExistingOverview = sheet.getRange('A1').getValue() === '收作業小老師收作業';
+  if (!isExistingOverview) {
     sheet.clear();
-    sheet.getRange('A1:H1').merge().setValue('收作業小老師收作業').setFontSize(20).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#F7BFD5');
+    sheet.getRange('A1:I1').merge().setValue('收作業小老師收作業').setFontSize(20).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#F7BFD5');
     sheet.setFrozenRows(4);
-    sheet.setColumnWidths(1, 1, 145); sheet.setColumnWidths(2, 1, 220); sheet.setColumnWidths(3, 1, 160);
-    sheet.setColumnWidths(4, 2, 90); sheet.setColumnWidths(6, 1, 240); sheet.setColumnWidths(7, 2, 135);
+  } else if (String(sheet.getRange('F4').getDisplayValue()).trim() !== '已經補交') {
+    sheet.insertColumnBefore(6);
   }
-  sheet.getRange('A2:H2').merge().setValue('有送出登记的日期会自动建立分页；分段轮收会标示收件范围，本次不用收的学生不计入缺交。').setHorizontalAlignment('center').setBackground('#FFF0F5');
-  sheet.getRange('A4:H4').setValues([['完成时间', '作业名称', '收作业人', '已交人数', '缺交人数', '缺交／不用收座号', '明细分页', '查看']]).setFontWeight('bold').setBackground('#B8DCEF');
+  sheet.setColumnWidths(1, 1, 145); sheet.setColumnWidths(2, 1, 220); sheet.setColumnWidths(3, 1, 160);
+  sheet.setColumnWidths(4, 2, 90); sheet.setColumnWidths(6, 1, 150); sheet.setColumnWidths(7, 1, 240); sheet.setColumnWidths(8, 2, 135);
+  sheet.getRange('A2:I2').merge().setValue('補交完成的學生會統一列在「已經補交」，不區分第幾日；缺交欄只保留目前尚未繳交者。').setHorizontalAlignment('center').setBackground('#FFF0F5');
+  sheet.getRange('A4:I4').setValues([['完成时间', '作业名称', '收作业人', '已交人数', '缺交人数', '已經補交', '缺交／不用收座号', '明细分页', '查看']]).setFontWeight('bold').setBackground('#B8DCEF');
   return sheet;
 }
 
@@ -283,17 +286,18 @@ function writeDailyBlock_(sheet, data, roster, completedAt) {
 
 function appendIndexRow_(indexSheet, dailySheet, blockStartRow, data, completedAt) {
   const row = Math.max(indexSheet.getLastRow() + 1, 5);
-  indexSheet.getRange(row, 1, 1, 7).setValues([[
+  indexSheet.getRange(row, 1, 1, 8).setValues([[
     completedAt,
     sheetText_(getIndexAssignmentLabel_(data)),
     sheetText_(getCollector_(data)),
     data.submitted.length,
     data.missing.length,
+    '無',
     formatSeatSummary_(data.missing, data.exempt || [], data.type === 'segmented'),
     dailySheet.getName()
   ]]);
   indexSheet.getRange(row, 1).setNumberFormat('yyyy/mm/dd hh:mm');
-  indexSheet.getRange(row, 8).setFormula(`=HYPERLINK("#gid=${dailySheet.getSheetId()}&range=A${blockStartRow}","查看")`);
+  indexSheet.getRange(row, 9).setFormula(`=HYPERLINK("#gid=${dailySheet.getSheetId()}&range=A${blockStartRow}","查看")`);
 }
 
 function findAssignmentBlock_(sheet, assignmentName, collectionGroup) {
@@ -312,32 +316,35 @@ function refreshAssignmentSummary_(sheet, startRow) {
   const statuses = sheet.getRange(startRow + 8, 3, 33, 1).getDisplayValues().map(row => String(row[0]).trim());
   const missing = [];
   const exempt = [];
+  const late = [];
   let submittedCount = 0;
   statuses.forEach((status, index) => {
     const seat = index + 1;
     if (seat === CONFIG.SUSPENDED_SEAT || status === '本輪不收') return;
     if (status === '缺交') missing.push(seat);
     else if (status === '本次不用收') exempt.push(seat);
-    else if (status === '已交' || status.indexOf('补交') >= 0) submittedCount += 1;
+    else if (status === '已交') submittedCount += 1;
+    else if (/[\u88dc补]交/.test(status)) { submittedCount += 1; late.push(seat); }
   });
   const scopeLabel = String(sheet.getRange(startRow + 6, 2).getDisplayValue()).trim() || '全班';
   sheet.getRange(startRow + 5, 2).setValue(formatSeatSummary_(missing, exempt, scopeLabel !== '全班'));
-  return { submittedCount, missing, exempt, isSegmented: scopeLabel !== '全班' };
+  return { submittedCount, missing, exempt, late, isSegmented: scopeLabel !== '全班' };
 }
 
 function refreshIndexRow_(indexSheet, dailySheet, startRow, assignmentName, summary) {
   const lastRow = indexSheet.getLastRow();
   if (lastRow < 5) return;
-  const values = indexSheet.getRange(5, 1, lastRow - 4, 8).getDisplayValues();
-  const formulas = indexSheet.getRange(5, 8, lastRow - 4, 1).getFormulas();
+  const values = indexSheet.getRange(5, 1, lastRow - 4, 9).getDisplayValues();
+  const formulas = indexSheet.getRange(5, 9, lastRow - 4, 1).getFormulas();
   for (let i = 0; i < values.length; i += 1) {
     const sameAssignment = String(values[i][1]).trim() === assignmentName;
-    const sameSheet = String(values[i][6]).trim() === dailySheet.getName();
+    const sameSheet = String(values[i][7]).trim() === dailySheet.getName();
     const sameBlock = String(formulas[i][0]).includes(`range=A${startRow}`);
     if (sameAssignment && sameSheet && sameBlock) {
-      indexSheet.getRange(i + 5, 4, 1, 3).setValues([[
+      indexSheet.getRange(i + 5, 4, 1, 4).setValues([[
         summary.submittedCount,
         summary.missing.length,
+        formatLateSeats_(summary.late || []),
         formatSeatSummary_(summary.missing, summary.exempt || [], Boolean(summary.isSegmented))
       ]]);
       return;
@@ -456,6 +463,10 @@ function formatSeatSummary_(missingSeats, exemptSeats, isSegmented) {
   else parts.push(isSegmented ? '本輪無缺交' : '全班無缺交');
   if (exemptSeats.length) parts.push(`本次不用收：${exemptSeats.join('、')}号`);
   return parts.join('；');
+}
+
+function formatLateSeats_(lateSeats) {
+  return lateSeats.length ? `${lateSeats.join('、')}號` : '無';
 }
 
 function getIndexAssignmentLabel_(data) {
