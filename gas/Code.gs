@@ -2,7 +2,12 @@ const CONFIG = {
   SUSPENDED_SEAT: 26,
   TIME_ZONE: 'Asia/Taipei',
   MAX_LATE_DAYS: 3,
-  ACTIVE_TOTAL: 32
+  ACTIVE_TOTAL: 32,
+  COLLECTION_GROUPS: {
+    g1: { label: '1～10號', start: 1, end: 10 },
+    g2: { label: '11～20號', start: 11, end: 20 },
+    g3: { label: '21～33號', start: 21, end: 33 }
+  }
 };
 
 function doGet(e) {
@@ -83,7 +88,7 @@ function saveLateSubmission_(data) {
     const indexSheet = ensureIndexSheet_(spreadsheet);
     const dailySheet = spreadsheet.getSheetByName(data.originalDate);
     if (!dailySheet) throw new Error(`找不到 ${data.originalDate} 的原始收件分页`);
-    const startRow = findAssignmentBlock_(dailySheet, data.assignmentName);
+    const startRow = findAssignmentBlock_(dailySheet, data.assignmentName, data.collectionGroup || 'all');
     if (!startRow) throw new Error('在原收件日找不到这个作业名称');
 
     const tableHeaderRow = startRow + 7;
@@ -123,7 +128,7 @@ function saveLateSubmission_(data) {
     });
 
     const summary = refreshAssignmentSummary_(dailySheet, startRow);
-    refreshIndexRow_(indexSheet, dailySheet, startRow, data.assignmentName, summary);
+    refreshIndexRow_(indexSheet, dailySheet, startRow, getIndexAssignmentLabel_(data), summary);
     ensureLateConditionalFormatting_(dailySheet, startRow);
     SpreadsheetApp.flush();
     return {
@@ -162,7 +167,7 @@ function ensureIndexSheet_(spreadsheet) {
     sheet.setColumnWidths(1, 1, 145); sheet.setColumnWidths(2, 1, 220); sheet.setColumnWidths(3, 1, 160);
     sheet.setColumnWidths(4, 2, 90); sheet.setColumnWidths(6, 1, 240); sheet.setColumnWidths(7, 2, 135);
   }
-  sheet.getRange('A2:H2').merge().setValue('有送出登记的日期会自动建立分页；同日多份作业依作业名称分区，补交会写回原日期的原作业区块。').setHorizontalAlignment('center').setBackground('#FFF0F5');
+  sheet.getRange('A2:H2').merge().setValue('有送出登记的日期会自动建立分页；分段轮收会标示收件范围，补交会写回原日期、原作业与原范围。').setHorizontalAlignment('center').setBackground('#FFF0F5');
   sheet.getRange('A4:H4').setValues([['完成时间', '作业名称', '收作业人', '已交人数', '缺交人数', '缺交座号', '明细分页', '查看']]).setFontWeight('bold').setBackground('#B8DCEF');
   return sheet;
 }
@@ -182,12 +187,14 @@ function getOrCreateDailySheet_(spreadsheet, completedAt) {
 
 function writeDailyBlock_(sheet, data, roster, completedAt) {
   const submitted = new Set((data.submitted || []).map(Number));
+  const targetSeats = new Set(getTargetSeats_(data.collectionGroup || 'all'));
+  const scopeLabel = getCollectionGroupLabel_(data.collectionGroup || 'all');
   const rows = [];
   for (let seat = 1; seat <= 33; seat += 1) {
     rows.push([
       seat,
       roster.get(seat) || '',
-      seat === CONFIG.SUSPENDED_SEAT ? '休学' : submitted.has(seat) ? '已交' : '缺交',
+      getCollectionStatus_(seat, targetSeats, submitted),
       '',
       ''
     ]);
@@ -199,13 +206,15 @@ function writeDailyBlock_(sheet, data, roster, completedAt) {
     ['收作业人', sheetText_(getCollector_(data))],
     ['开始时间', new Date(data.startedAt)],
     ['完成时间', completedAt],
-    ['缺交座号', (data.missing || []).length ? `${data.missing.join('、')}号` : '全班皆已缴交']
+    ['缺交座号', (data.missing || []).length ? `${data.missing.join('、')}号` : data.type === 'segmented' ? '本輪皆已缴交' : '全班皆已缴交']
   ]);
+  sheet.getRange(startRow + 6, 1, 1, 2).setValues([['收件範圍', scopeLabel]]);
   sheet.getRange(startRow + 3, 2, 2, 1).setNumberFormat('yyyy/mm/dd hh:mm');
   sheet.getRange(startRow + 7, 1, 1, 5).setValues([['座号', '姓名', '状态', '补交时间', '收作业人']]).setFontWeight('bold').setBackground('#B8DCEF');
   sheet.getRange(startRow + 7, 7, 1, 4).setValues([['补交座号', '补交日数', '补交时间', '收作业人']]).setFontWeight('bold').setBackground('#F8DF93');
   sheet.getRange(startRow + 8, 1, rows.length, 5).setValues(rows);
   sheet.getRange(startRow + 1, 1, 5, 1).setFontWeight('bold').setBackground('#FFF0F5');
+  sheet.getRange(startRow + 6, 1).setFontWeight('bold').setBackground('#FFF0F5');
   sheet.getRange(startRow + 8, 1, rows.length, 1).setHorizontalAlignment('center');
   sheet.getRange(startRow + 8, 3, rows.length, 1).setHorizontalAlignment('center');
   const statusRange = sheet.getRange(startRow + 8, 3, rows.length, 1);
@@ -213,6 +222,7 @@ function writeDailyBlock_(sheet, data, roster, completedAt) {
   sheet.setConditionalFormatRules(existingRules.concat([
     SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('已交').setBackground('#BFE5D1').setRanges([statusRange]).build(),
     SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('缺交').setBackground('#F7BFD5').setRanges([statusRange]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('本輪不收').setBackground('#E8E5EE').setRanges([statusRange]).build(),
     SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo('休学').setBackground('#DDD9DF').setRanges([statusRange]).build(),
     SpreadsheetApp.newConditionalFormatRule().whenTextContains('补交').setBackground('#F8DF93').setRanges([statusRange]).build()
   ]));
@@ -224,7 +234,7 @@ function appendIndexRow_(indexSheet, dailySheet, blockStartRow, data, completedA
   const row = Math.max(indexSheet.getLastRow() + 1, 5);
   indexSheet.getRange(row, 1, 1, 7).setValues([[
     completedAt,
-    sheetText_(data.assignmentName),
+    sheetText_(getIndexAssignmentLabel_(data)),
     sheetText_(getCollector_(data)),
     data.submitted.length,
     data.missing.length,
@@ -235,11 +245,13 @@ function appendIndexRow_(indexSheet, dailySheet, blockStartRow, data, completedA
   indexSheet.getRange(row, 8).setFormula(`=HYPERLINK("#gid=${dailySheet.getSheetId()}&range=A${blockStartRow}","查看")`);
 }
 
-function findAssignmentBlock_(sheet, assignmentName) {
+function findAssignmentBlock_(sheet, assignmentName, collectionGroup) {
   const values = sheet.getRange(1, 1, Math.max(sheet.getLastRow(), 1), 2).getDisplayValues();
+  const expectedScope = getCollectionGroupLabel_(collectionGroup || 'all');
   for (let i = 0; i < values.length - 1; i += 1) {
     if (String(values[i][0]).trim() === assignmentName && String(values[i + 1][0]).trim() === '作业名称' && String(values[i + 1][1]).trim() === assignmentName) {
-      return i + 1;
+      const scopeLabel = String(values[i + 6] && values[i + 6][1] || '').trim() || '全班';
+      if (scopeLabel === expectedScope) return i + 1;
     }
   }
   return 0;
@@ -251,11 +263,12 @@ function refreshAssignmentSummary_(sheet, startRow) {
   let submittedCount = 0;
   statuses.forEach((status, index) => {
     const seat = index + 1;
-    if (seat === CONFIG.SUSPENDED_SEAT) return;
+    if (seat === CONFIG.SUSPENDED_SEAT || status === '本輪不收') return;
     if (status === '缺交') missing.push(seat);
-    else submittedCount += 1;
+    else if (status === '已交' || status.indexOf('补交') >= 0) submittedCount += 1;
   });
-  sheet.getRange(startRow + 5, 2).setValue(missing.length ? `${missing.join('、')}号` : '全班皆已缴交');
+  const scopeLabel = String(sheet.getRange(startRow + 6, 2).getDisplayValue()).trim() || '全班';
+  sheet.getRange(startRow + 5, 2).setValue(missing.length ? `${missing.join('、')}号` : scopeLabel === '全班' ? '全班皆已缴交' : '本輪皆已缴交');
   return { submittedCount, missing };
 }
 
@@ -319,6 +332,7 @@ function validatePayload_(data) {
   const collector = getCollector_(data);
   if (!collector || [...collector].length > 20) throw new Error('收作业人必须为 1 至 20 个字');
   if (typeof data.completedAt !== 'string' || Number.isNaN(Date.parse(data.completedAt))) throw new Error('完成时间格式不正确');
+  if (!['initial', 'segmented', 'late'].includes(String(data.type || 'initial'))) throw new Error('登记类型不正确');
 
   if (data.type === 'late') {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data.originalDate || ''))) throw new Error('原收件日期格式不正确');
@@ -326,6 +340,8 @@ function validatePayload_(data) {
     if (!Array.isArray(data.lateSeats) || !data.lateSeats.length) throw new Error('请至少选择一个补交座号');
     validateActiveSeats_(data.lateSeats);
     if (new Set(data.lateSeats).size !== data.lateSeats.length) throw new Error('补交座号不可重复');
+    const lateTargetSeats = new Set(getTargetSeats_(data.collectionGroup || 'all'));
+    if (data.lateSeats.some(seat => !lateTargetSeats.has(seat))) throw new Error('补交座号超出所选的原收件范围');
     return;
   }
 
@@ -336,10 +352,13 @@ function validatePayload_(data) {
   const missing = new Set(data.missing);
   if (submitted.size !== data.submitted.length || missing.size !== data.missing.length) throw new Error('座号资料不可重复');
   if ([...submitted].some(seat => missing.has(seat))) throw new Error('已交与缺交座号不可重叠');
-  const activeSeats = [];
-  for (let seat = 1; seat <= 33; seat += 1) if (seat !== CONFIG.SUSPENDED_SEAT) activeSeats.push(seat);
-  if (submitted.size + missing.size !== activeSeats.length || activeSeats.some(seat => !submitted.has(seat) && !missing.has(seat))) {
-    throw new Error('已交与缺交座号必须完整涵盖 32 位在籍学生');
+  const collectionGroup = data.type === 'segmented' ? String(data.collectionGroup || '') : 'all';
+  if (data.type === 'segmented' && !CONFIG.COLLECTION_GROUPS[collectionGroup]) throw new Error('分段收件范围不正确');
+  const targetSeats = getTargetSeats_(collectionGroup);
+  const targetSet = new Set(targetSeats);
+  if ([...submitted, ...missing].some(seat => !targetSet.has(seat))) throw new Error('座号资料超出本轮收件范围');
+  if (submitted.size + missing.size !== targetSeats.length || targetSeats.some(seat => !submitted.has(seat) && !missing.has(seat))) {
+    throw new Error(data.type === 'segmented' ? '已交与缺交座号必须完整涵盖本轮收件范围' : '已交与缺交座号必须完整涵盖 32 位在籍学生');
   }
   if (typeof data.startedAt !== 'string' || Number.isNaN(Date.parse(data.startedAt))) throw new Error('开始时间格式不正确');
 }
@@ -347,6 +366,35 @@ function validatePayload_(data) {
 function validateActiveSeats_(seats) {
   const valid = seat => Number.isInteger(seat) && seat >= 1 && seat <= 33 && seat !== CONFIG.SUSPENDED_SEAT;
   if (!seats.every(valid)) throw new Error('座号资料包含无效座号');
+}
+
+function getCollectionGroupLabel_(collectionGroup) {
+  if (!collectionGroup || collectionGroup === 'all') return '全班';
+  const group = CONFIG.COLLECTION_GROUPS[collectionGroup];
+  if (!group) throw new Error('收件范围不正确');
+  return group.label;
+}
+
+function getTargetSeats_(collectionGroup) {
+  const group = collectionGroup && collectionGroup !== 'all' ? CONFIG.COLLECTION_GROUPS[collectionGroup] : null;
+  if (collectionGroup && collectionGroup !== 'all' && !group) throw new Error('收件范围不正确');
+  const seats = [];
+  for (let seat = 1; seat <= 33; seat += 1) {
+    if (seat === CONFIG.SUSPENDED_SEAT) continue;
+    if (!group || (seat >= group.start && seat <= group.end)) seats.push(seat);
+  }
+  return seats;
+}
+
+function getCollectionStatus_(seat, targetSeats, submittedSeats) {
+  if (seat === CONFIG.SUSPENDED_SEAT) return '休学';
+  if (!targetSeats.has(seat)) return '本輪不收';
+  return submittedSeats.has(seat) ? '已交' : '缺交';
+}
+
+function getIndexAssignmentLabel_(data) {
+  const scopeLabel = getCollectionGroupLabel_(data.collectionGroup || 'all');
+  return scopeLabel === '全班' ? String(data.assignmentName || '').trim() : `${String(data.assignmentName || '').trim()}｜${scopeLabel}`;
 }
 
 function getLateDays_(originalDate, receivedAt) {
@@ -371,3 +419,4 @@ function getCollector_(data) {
 function jsonOutput_(value) {
   return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);
 }
+
